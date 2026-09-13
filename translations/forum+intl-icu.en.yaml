@@ -43,7 +43,7 @@ topic:
 
 post:
   permalink: "Link to this post"
-  reply_to: "in reply to #%number%"
+  reply_to: "in reply to #{number}"
   edited: "{count, plural, one {edited} other {edited # times}}"
   deleted: "This post was deleted."
   show_deleted: "Show deleted post"
@@ -61,7 +61,7 @@ post:
 reply:
   title: "Reply"
   send: "Send"
-  in_reply_to: "In reply to post #%number%"
+  in_reply_to: "In reply to post #{number}"
 
 moderate:
   pin: "Pin"
@@ -77,11 +77,11 @@ search:
   go: "Search"
   hint: "Type at least three letters."
   too_short: "Type at least three letters to search."
-  results_for: "Results for \"%term%\""
+  results_for: "Results for \"{term}\""
 
 aside:
   write: "Speak up"
-  login_to_write: "<a href=\"%login%\">Sign in</a> or <a href=\"%register%\">create an account</a> to write on the BBS."
+  login_to_write: "<a href=\"{login}\">Sign in</a> or <a href=\"{register}\">create an account</a> to write on the BBS."
   tags: "Tags"
   help: "Good to know"
   help_markdown: "Posts are written in Markdown: **bold**, _italic_, > quote, `code`."
@@ -90,7 +90,7 @@ aside:
 
 member:
   deleted: "Vanished member"
-  level: "Level %level%"
+  level: "Level {level}"
 
 form:
   title: "Title"
@@ -113,4 +113,4 @@ flash:
   topic_deleted: "Topic deleted."
   moderated: "Done."
   board_locked: "This board takes no new topics."
-  flood: "Easy! Wait another %seconds% seconds before posting again."
+  flood: "Easy! Wait another {seconds} seconds before posting again."

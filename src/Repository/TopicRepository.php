@@ -131,16 +131,23 @@ class TopicRepository extends ThreadRepository
 
     /**
      * Tags in use on the forum, most used first - the tag cloud. Rows of
-     * [tag, count].
+     * ['tag' => Tag, 'nb' => int]. Queried from the Tag side: DQL will not
+     * select a joined entity without its root alias, and the count is what
+     * the join is for.
      */
     public function findTagUsage(int $limit = 30): array
     {
-        return $this->createQueryBuilder('t')
-            ->select('tag AS tag, COUNT(t.id) AS usage')
-            ->innerJoin('t.tags', 'tag')
+        $rows = $this->getEntityManager()->createQueryBuilder()
+            ->select('tag, COUNT(t.id) AS nb')
+            ->from(Tag::class, 'tag')
+            ->innerJoin('tag.threads', 't')
+            ->andWhere('t INSTANCE OF ' . Topic::class)
             ->groupBy('tag.id')
-            ->orderBy('usage', 'DESC')
+            ->orderBy('nb', 'DESC')
             ->setMaxResults($limit)
             ->getQuery()->getResult();
+
+        // A mixed entity + scalar result comes back as [0 => Tag, 'nb' => n].
+        return array_map(fn ($row) => ['tag' => $row[0], 'nb' => (int) $row['nb']], $rows);
     }
 }

@@ -17,9 +17,9 @@
     <div class="forum-box-title"><i class="fa-solid fa-tags"></i> {{ '@forum.aside.tags'|trans }}</div>
     <div class="forum-box-body forum-tagcloud">
         {% for row in tags %}
-            {% set tag = row.tag ?? row[0] %}
+            {% set tag = row.tag %}
             <a class="forum-tag" href="{{ path('forum_tag', {slug: tag.slug}) }}" style="{{ tag.color ? '--tag:' ~ tag.color : '' }}">
-                {{ tag }} <span class="forum-tag-count">{{ row.usage ?? row['usage'] }}</span>
+                {{ tag }} <span class="forum-tag-count">{{ row.nb }}</span>
             </a>
         {% endfor %}
     </div>

@@ -28,7 +28,7 @@ class ForumController extends AbstractController
     private readonly TopicRepository $topics;
 
     public function __construct(
-        EntityManagerInterface $entityManager,
+        private readonly EntityManagerInterface $entityManager,
         private readonly PaginatorInterface $paginator,
         #[Autowire('%forum.topics_per_page%')] private readonly int $topicsPerPage = 20,
     ) {
@@ -92,7 +92,7 @@ class ForumController extends AbstractController
     #[Route('/bbs/t/{slug}', name: 'forum_tag')]
     public function Tag(Request $request, string $slug): Response
     {
-        $tag = $this->topics->getEntityManager()->getRepository(Tag::class)->findOneBy(['slug' => $slug]);
+        $tag = $this->entityManager->getRepository(Tag::class)->findOneBy(['slug' => $slug]);
         if (!$tag) {
             throw $this->createNotFoundException('Unknown tag.');
         }

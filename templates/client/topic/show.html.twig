@@ -69,8 +69,8 @@
             <h3><i class="fa-solid fa-reply"></i> {{ '@forum.reply.title'|trans }}</h3>
             {{ form_start(reply, {attr: {class: 'forum-form'}}) }}
                 {% if reply.vars.value.replyTo %}
-                    <input type="hidden" name="reply_to" value="{{ reply.vars.value.replyTo.id }}">
-                    <p class="forum-reply-to">{{ '@forum.reply.in_reply_to'|trans({'%number%': reply.vars.value.replyTo.number}) }}</p>
+                    <input type="hidden" name="reply_to" value="{{ reply.vars.value.replyTo }}">
+                    <p class="forum-reply-to">{{ '@forum.reply.in_reply_to'|trans({'%number%': reply.vars.value.replyTo}) }}</p>
                 {% endif %}
                 {{ form_row(reply.content) }}
                 <div class="forum-form-actions">

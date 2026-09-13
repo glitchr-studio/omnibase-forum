@@ -19,7 +19,7 @@ use Symfony\Component\Validator\Constraints as Assert;
  */
 #[ORM\Entity(repositoryClass: PostRepository::class)]
 #[ORM\Table(name: 'forum_post')]
-#[ORM\Index(columns: ['created_at'], name: 'forum_post_created_idx')]
+#[ORM\Index(columns: ['createdAt'], name: 'forum_post_created_idx')]
 class Post
 {
     use BaseTrait;

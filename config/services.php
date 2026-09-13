@@ -37,6 +37,8 @@ return function (ContainerConfigurator $configurator) {
             $src . '/Entity/',
             $src . '/Controller/Admin/',
             $src . '/ForumBundle.php',
+            // Exceptions are values, not services.
+            $src . '/Service/*Exception.php',
         ]);
 
     $services->load('Base\\Forum\\Controller\\Client\\', $src . '/Controller/Client/')

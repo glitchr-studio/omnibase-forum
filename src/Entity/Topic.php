@@ -20,6 +20,7 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
  * quoted, edited and moderated the same way.
  */
 #[ORM\Entity(repositoryClass: TopicRepository::class)]
+#[ORM\Table(name: 'forum_topic')]
 #[DiscriminatorEntry(value: 'forum_topic')]
 class Topic extends Thread implements LinkableInterface
 {

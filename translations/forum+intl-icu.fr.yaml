@@ -43,7 +43,7 @@ topic:
 
 post:
   permalink: "Lien vers ce message"
-  reply_to: "en réponse à #%number%"
+  reply_to: "en réponse à #{number}"
   edited: "{count, plural, one {modifié} other {modifié # fois}}"
   deleted: "Ce message a été supprimé."
   show_deleted: "Voir le message supprimé"
@@ -61,7 +61,7 @@ post:
 reply:
   title: "Répondre"
   send: "Envoyer"
-  in_reply_to: "En réponse au message #%number%"
+  in_reply_to: "En réponse au message #{number}"
 
 moderate:
   pin: "Épingler"
@@ -77,11 +77,11 @@ search:
   go: "Chercher"
   hint: "Tape au moins trois lettres."
   too_short: "Tape au moins trois lettres pour chercher."
-  results_for: "Résultats pour « %term% »"
+  results_for: "Résultats pour « {term} »"
 
 aside:
   write: "Prendre la parole"
-  login_to_write: "<a href=\"%login%\">Connecte-toi</a> ou <a href=\"%register%\">crée un compte</a> pour écrire sur le BBS."
+  login_to_write: "<a href=\"{login}\">Connecte-toi</a> ou <a href=\"{register}\">crée un compte</a> pour écrire sur le BBS."
   tags: "Étiquettes"
   help: "Bon à savoir"
   help_markdown: "Les messages s'écrivent en Markdown : **gras**, _italique_, > citation, `code`."
@@ -90,7 +90,7 @@ aside:
 
 member:
   deleted: "Membre disparu"
-  level: "Niveau %level%"
+  level: "Niveau {level}"
 
 form:
   title: "Titre"
@@ -113,4 +113,4 @@ flash:
   topic_deleted: "Sujet supprimé."
   moderated: "C'est fait."
   board_locked: "Ce forum n'accepte plus de nouveaux sujets."
-  flood: "Doucement ! Attends encore %seconds% secondes avant de poster à nouveau."
+  flood: "Doucement ! Attends encore {seconds} secondes avant de poster à nouveau."

@@ -7,6 +7,7 @@ use Base\Forum\Entity\Post;
 use Base\Forum\Entity\Topic;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
+use Symfony\Component\Security\Core\Authorization\Voter\Vote;
 use Symfony\Component\Security\Core\Authorization\Voter\Voter;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -39,7 +40,7 @@ final class ForumVoter extends Voter
         return in_array($attribute, [self::READ, self::POST, self::REPLY, self::EDIT, self::MODERATE], true);
     }
 
-    protected function voteOnAttribute(string $attribute, mixed $subject, TokenInterface $token): bool
+    protected function voteOnAttribute(string $attribute, mixed $subject, TokenInterface $token, ?Vote $vote = null): bool
     {
         $user = $token->getUser();
         $isUser = $user instanceof UserInterface;

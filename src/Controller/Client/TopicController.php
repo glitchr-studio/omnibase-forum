@@ -5,6 +5,7 @@ namespace Base\Forum\Controller\Client;
 use Base\Forum\Entity\Category;
 use Base\Forum\Entity\Post;
 use Base\Forum\Entity\Topic;
+use Base\Forum\Form\Model\PostModel;
 use Base\Forum\Form\Model\TopicModel;
 use Base\Forum\Form\Type\PostType;
 use Base\Forum\Form\Type\TopicType;
@@ -110,12 +111,12 @@ class TopicController extends AbstractController
 
         $reply = null;
         if ($this->isGranted(ForumVoter::REPLY, $topic)) {
-            $draft = new Post($this->getUser());
+            $draft = new PostModel();
             if ($quoteId = $request->query->getInt('quote')) {
                 $quoted = $this->posts->find($quoteId);
                 if ($quoted && $quoted->getTopic() === $topic && !$quoted->isDeleted()) {
-                    $draft->setContent($this->markdown->quote($quoted->getContent(), (string) $quoted->getAuthor()));
-                    $draft->setReplyTo($quoted);
+                    $draft->content = $this->markdown->quote($quoted->getContent(), (string) $quoted->getAuthor());
+                    $draft->replyTo = $quoted->getId();
                 }
             }
             $reply = $this->createForm(PostType::class, $draft, [
@@ -142,16 +143,17 @@ class TopicController extends AbstractController
         }
         $this->denyAccessUnlessGranted(ForumVoter::REPLY, $topic);
 
-        $post = new Post($this->getUser());
-        $form = $this->createForm(PostType::class, $post);
+        $model = new PostModel();
+        $form = $this->createForm(PostType::class, $model);
         $form->handleRequest($request);
 
         if ($form->isSubmitted() && $form->isValid()) {
             if ($wait = $this->floodWait()) {
                 $this->addFlash('error', $this->translator->trans('@forum.flash.flood', ['%seconds%' => $wait]));
-                return $this->redirectToRoute('forum_topic', ['slug' => $slug, 'page' => 'last']);
+                return $this->redirectToRoute('forum_topic', ['slug' => $slug]);
             }
 
+            $post = new Post($this->getUser(), $model->content);
             if ($replyTo = $request->request->getInt('reply_to')) {
                 $quoted = $this->posts->find($replyTo);
                 if ($quoted && $quoted->getTopic() === $topic) {
@@ -268,10 +270,12 @@ class TopicController extends AbstractController
         }
         $this->denyAccessUnlessGranted(ForumVoter::EDIT, $post);
 
-        $form = $this->createForm(PostType::class, $post);
+        $model = PostModel::fromPost($post);
+        $form = $this->createForm(PostType::class, $model);
         $form->handleRequest($request);
 
         if ($form->isSubmitted() && $form->isValid()) {
+            $post->setContent($model->content);
             if ($post->getAuthor() === $this->getUser()) {
                 $post->markEdited();
             }
