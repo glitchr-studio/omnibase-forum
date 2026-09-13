@@ -1,0 +1,24 @@
+{% extends '@Forum/client/layout.html.twig' %}
+
+{% block forum_title %}{{ category.title }}{% endblock %}
+{% block forum_crumbs %}
+    {% if category.parent %}<span>›</span> <a href="{{ path('forum_category', {slug: category.parent.slug}) }}">{{ category.parent.title }}</a>{% endif %}
+    <span>›</span> <span>{{ category.title }}</span>
+{% endblock %}
+
+{% block forum_body %}
+    <section class="forum-board-head" style="{{ category.color ? '--cat:' ~ category.color : '' }}">
+        <div class="forum-board-head-text">
+            <h2><i class="{{ category.icon|default('fa-solid fa-comments') }}"></i> {{ category.title }}
+                {% if category.locked %}<i class="fa-solid fa-lock" title="{{ '@forum.board.locked'|trans }}"></i>{% endif %}
+            </h2>
+            {% if category.description %}<p>{{ category.description }}</p>{% endif %}
+        </div>
+        {% if is_granted('FORUM_POST', category) %}
+            <a class="forum-btn forum-btn-primary" href="{{ path('forum_topic_new', {category: category.slug}) }}"><i class="fa-solid fa-plus"></i> {{ '@forum.topic.new'|trans }}</a>
+        {% endif %}
+    </section>
+
+    {% include '@Forum/client/_topic_list.html.twig' with {topics: topics, show_category: false} %}
+    {{ paginator(topics, 'forum_category', {slug: category.slug}) }}
+{% endblock %}

@@ -1,0 +1,92 @@
+{% extends '@Forum/client/layout.html.twig' %}
+
+{% block forum_title %}{{ topic.title }}{% endblock %}
+{% block forum_crumbs %}
+    {% set cat = topic.category %}
+    {% if cat and cat.parent %}<span>›</span> <a href="{{ path('forum_category', {slug: cat.parent.slug}) }}">{{ cat.parent.title }}</a>{% endif %}
+    {% if cat %}<span>›</span> <a href="{{ path('forum_category', {slug: cat.slug}) }}">{{ cat.title }}</a>{% endif %}
+{% endblock %}
+
+{% block forum_body %}
+    {% set can_moderate = is_granted('FORUM_MODERATE') %}
+    {% set can_edit_topic = is_granted('FORUM_EDIT', topic) %}
+
+    <article class="forum-topic" id="topic-{{ topic.id }}">
+        <header class="forum-topic-head">
+            <h2 class="forum-topic-heading">
+                {% if topic.pinned %}<i class="fa-solid fa-thumbtack" title="{{ '@forum.topic.pinned'|trans }}"></i>{% endif %}
+                {% if topic.locked %}<i class="fa-solid fa-lock" title="{{ '@forum.topic.locked'|trans }}"></i>{% endif %}
+                {{ topic.title }}
+            </h2>
+            <div class="forum-topic-meta">
+                {% for tag in topic.tags %}
+                    <a class="forum-tag forum-tag-sm" href="{{ path('forum_tag', {slug: tag.slug}) }}" style="{{ tag.color ? '--tag:' ~ tag.color : '' }}">{{ tag }}</a>
+                {% endfor %}
+                <span class="forum-topic-stats">
+                    <i class="fa-regular fa-comment"></i> {{ topic.replies }}
+                    <i class="fa-regular fa-eye"></i> {{ topic.views }}
+                    <i class="fa-regular fa-heart"></i> <span data-forum-likes>{{ topic.likes|length }}</span>
+                </span>
+            </div>
+
+            <div class="forum-topic-actions">
+                {% if is_granted('ROLE_USER') %}
+                    <button type="button" class="forum-btn forum-btn-ghost{{ is_liked ? ' is-active' }}" data-forum-like data-like="{{ path('api_thread_like', {slug: topic.slug}) }}" data-unlike="{{ path('api_thread_unlike', {slug: topic.slug}) }}" aria-pressed="{{ is_liked ? 'true' : 'false' }}">
+                        <i class="fa-solid fa-heart"></i> <span>{{ (is_liked ? '@forum.topic.liked' : '@forum.topic.like')|trans }}</span>
+                    </button>
+                    <button type="button" class="forum-btn forum-btn-ghost{{ is_following ? ' is-active' }}" data-forum-follow data-follow="{{ path('api_thread_follow', {slug: topic.slug}) }}" data-unfollow="{{ path('api_thread_unfollow', {slug: topic.slug}) }}" aria-pressed="{{ is_following ? 'true' : 'false' }}">
+                        <i class="fa-solid fa-bell"></i> <span>{{ (is_following ? '@forum.topic.following' : '@forum.topic.follow')|trans }}</span>
+                    </button>
+                {% endif %}
+                {% if can_edit_topic %}
+                    <a class="forum-btn forum-btn-ghost" href="{{ path('forum_topic_edit', {slug: topic.slug}) }}"><i class="fa-solid fa-pen"></i> {{ '@forum.topic.edit'|trans }}</a>
+                {% endif %}
+                {% if can_moderate or can_edit_topic %}
+                <form class="forum-moderate" method="post" action="{{ path('forum_topic_moderate', {slug: topic.slug, action: 'pin'}) }}" data-forum-moderate>
+                    <input type="hidden" name="_token" value="{{ csrf_token('forum_moderate_' ~ topic.id) }}">
+                    {% if can_moderate %}
+                        <button class="forum-btn forum-btn-ghost" formaction="{{ path('forum_topic_moderate', {slug: topic.slug, action: topic.pinned ? 'unpin' : 'pin'}) }}"><i class="fa-solid fa-thumbtack"></i> {{ (topic.pinned ? '@forum.moderate.unpin' : '@forum.moderate.pin')|trans }}</button>
+                        <button class="forum-btn forum-btn-ghost" formaction="{{ path('forum_topic_moderate', {slug: topic.slug, action: topic.locked ? 'unlock' : 'lock'}) }}"><i class="fa-solid fa-{{ topic.locked ? 'lock-open' : 'lock' }}"></i> {{ (topic.locked ? '@forum.moderate.unlock' : '@forum.moderate.lock')|trans }}</button>
+                    {% endif %}
+                    <button class="forum-btn forum-btn-danger" formaction="{{ path('forum_topic_moderate', {slug: topic.slug, action: 'delete'}) }}" data-confirm="{{ '@forum.moderate.delete_confirm'|trans }}"><i class="fa-solid fa-trash"></i> {{ '@forum.moderate.delete'|trans }}</button>
+                </form>
+                {% endif %}
+            </div>
+        </header>
+
+        {{ paginator(posts, 'forum_topic', {slug: topic.slug}) }}
+
+        <ol class="forum-posts" start="{{ (posts.page - 1) * posts.pageSize + 1 }}">
+            {% for post in posts %}
+                {% include '@Forum/client/_post.html.twig' with {post: post, topic: topic} %}
+            {% endfor %}
+        </ol>
+
+        {{ paginator(posts, 'forum_topic', {slug: topic.slug}) }}
+
+        {% if reply %}
+        <section class="forum-reply" id="reply">
+            <h3><i class="fa-solid fa-reply"></i> {{ '@forum.reply.title'|trans }}</h3>
+            {{ form_start(reply, {attr: {class: 'forum-form'}}) }}
+                {% if reply.vars.value.replyTo %}
+                    <input type="hidden" name="reply_to" value="{{ reply.vars.value.replyTo.id }}">
+                    <p class="forum-reply-to">{{ '@forum.reply.in_reply_to'|trans({'%number%': reply.vars.value.replyTo.number}) }}</p>
+                {% endif %}
+                {{ form_row(reply.content) }}
+                <div class="forum-form-actions">
+                    <button type="submit" class="forum-btn forum-btn-primary"><i class="fa-solid fa-paper-plane"></i> {{ '@forum.reply.send'|trans }}</button>
+                </div>
+            {{ form_end(reply) }}
+        </section>
+        {% elseif topic.locked %}
+            <p class="forum-locked-note"><i class="fa-solid fa-lock"></i> {{ '@forum.topic.locked_note'|trans }}</p>
+        {% elseif not is_granted('ROLE_USER') %}
+            <p class="forum-locked-note">{{ '@forum.aside.login_to_write'|trans({'%login%': path('security_login'), '%register%': path('security_register')})|raw }}</p>
+        {% endif %}
+    </article>
+{% endblock %}
+
+{% block javascripts %}
+    {{ parent() }}
+    <script src="{{ asset('bundles/forum/js/forum.js') }}" defer></script>
+{% endblock %}

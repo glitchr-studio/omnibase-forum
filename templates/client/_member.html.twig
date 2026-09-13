@@ -1,0 +1,6 @@
+{# A member's name, linked to their profile; a deleted account keeps its place. #}
+{% if user is null %}
+    <span class="forum-member forum-member-gone">{{ '@forum.member.deleted'|trans }}</span>
+{% else %}
+    <a class="forum-member" href="{{ path('user_profile', {id: user.id}) }}">{{ user.username }}</a>
+{% endif %}

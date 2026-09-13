@@ -1,0 +1,20 @@
+{% extends '@Forum/client/layout.html.twig' %}
+
+{% block forum_title %}{{ '@forum.search.title'|trans }}{% endblock %}
+{% block forum_crumbs %}<span>›</span> <span>{{ '@forum.search.title'|trans }}</span>{% endblock %}
+
+{% block forum_body %}
+    <section class="forum-board-head">
+        <div class="forum-board-head-text">
+            <h2><i class="fa-solid fa-magnifying-glass"></i> {{ '@forum.search.title'|trans }}</h2>
+            {% if term %}<p>{{ '@forum.search.results_for'|trans({'%term%': term}) }}</p>{% else %}<p>{{ '@forum.search.hint'|trans }}</p>{% endif %}
+        </div>
+    </section>
+
+    {% if topics is not null %}
+        {% include '@Forum/client/_topic_list.html.twig' with {topics: topics, show_category: true} %}
+        {{ paginator(topics, 'forum_search', {q: term}) }}
+    {% elseif term %}
+        <p class="forum-empty">{{ '@forum.search.too_short'|trans }}</p>
+    {% endif %}
+{% endblock %}

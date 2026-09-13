@@ -1,0 +1,28 @@
+{% extends '@Forum/client/layout.html.twig' %}
+
+{% block forum_title %}{{ '@forum.topic.new'|trans }}{% endblock %}
+{% block forum_crumbs %}
+    {% if category and category.parent %}<span>›</span> <a href="{{ path('forum_category', {slug: category.parent.slug}) }}">{{ category.parent.title }}</a>{% endif %}
+    {% if category %}<span>›</span> <a href="{{ path('forum_category', {slug: category.slug}) }}">{{ category.title }}</a>{% endif %}
+    <span>›</span> <span>{{ '@forum.topic.new'|trans }}</span>
+{% endblock %}
+
+{% block forum_body %}
+    <section class="forum-board-head">
+        <div class="forum-board-head-text">
+            <h2><i class="fa-solid fa-pen-nib"></i> {{ '@forum.topic.new'|trans }}</h2>
+            <p>{{ '@forum.topic.new_hint'|trans }}</p>
+        </div>
+    </section>
+
+    {{ form_start(form, {attr: {class: 'forum-form forum-form-topic'}}) }}
+        {{ form_row(form.title) }}
+        {{ form_row(form.category) }}
+        {{ form_row(form.tags) }}
+        {{ form_row(form.content) }}
+        <div class="forum-form-actions">
+            <button type="submit" class="forum-btn forum-btn-primary"><i class="fa-solid fa-paper-plane"></i> {{ '@forum.topic.publish'|trans }}</button>
+            <a class="forum-btn forum-btn-ghost" href="{{ category ? path('forum_category', {slug: category.slug}) : path('forum_index') }}">{{ '@forum.form.cancel'|trans }}</a>
+        </div>
+    {{ form_end(form) }}
+{% endblock %}

@@ -1,0 +1,38 @@
+{# The right-hand column: a call to write, then the tag cloud. #}
+<div class="forum-box forum-box-new">
+    <div class="forum-box-title"><i class="fa-solid fa-pen-nib"></i> {{ '@forum.aside.write'|trans }}</div>
+    <div class="forum-box-body">
+        {% if is_granted('ROLE_USER') %}
+            <a class="forum-btn forum-btn-primary" href="{{ path('forum_topic_new', category is defined and category and category.isBoard ? {category: category.slug} : {}) }}">
+                <i class="fa-solid fa-plus"></i> {{ '@forum.topic.new'|trans }}
+            </a>
+        {% else %}
+            <p>{{ '@forum.aside.login_to_write'|trans({'%login%': path('security_login'), '%register%': path('security_register')})|raw }}</p>
+        {% endif %}
+    </div>
+</div>
+
+{% if tags is defined and tags|length %}
+<div class="forum-box forum-box-tags">
+    <div class="forum-box-title"><i class="fa-solid fa-tags"></i> {{ '@forum.aside.tags'|trans }}</div>
+    <div class="forum-box-body forum-tagcloud">
+        {% for row in tags %}
+            {% set tag = row.tag ?? row[0] %}
+            <a class="forum-tag" href="{{ path('forum_tag', {slug: tag.slug}) }}" style="{{ tag.color ? '--tag:' ~ tag.color : '' }}">
+                {{ tag }} <span class="forum-tag-count">{{ row.usage ?? row['usage'] }}</span>
+            </a>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<div class="forum-box forum-box-help">
+    <div class="forum-box-title"><i class="fa-solid fa-circle-question"></i> {{ '@forum.aside.help'|trans }}</div>
+    <div class="forum-box-body">
+        <ul>
+            <li>{{ '@forum.aside.help_markdown'|trans }}</li>
+            <li>{{ '@forum.aside.help_mention'|trans }}</li>
+            <li>{{ '@forum.aside.help_follow'|trans }}</li>
+        </ul>
+    </div>
+</div>

@@ -1,0 +1,61 @@
+{#
+ # The topic list, Discourse-shaped: avatar, title + tags + board, then the
+ # counters. Variables: topics (a Pagination), show_category (bool).
+ #}
+{% set show_category = show_category|default(true) %}
+{% if topics|length == 0 %}
+    <p class="forum-empty">{{ '@forum.list.empty'|trans }}</p>
+{% else %}
+<table class="forum-topics">
+    <thead>
+        <tr>
+            <th class="col-topic">{{ '@forum.list.topic'|trans }}</th>
+            {% if show_category %}<th class="col-cat">{{ '@forum.list.board'|trans }}</th>{% endif %}
+            <th class="col-num">{{ '@forum.list.replies'|trans }}</th>
+            <th class="col-num">{{ '@forum.list.views'|trans }}</th>
+            <th class="col-activity">{{ '@forum.list.activity'|trans }}</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for topic in topics %}
+        {% set hot = topic.replies >= 25 %}
+        <tr class="forum-topic-row{{ topic.pinned ? ' is-pinned' }}{{ topic.locked ? ' is-locked' }}{{ hot ? ' is-hot' }}">
+            <td class="col-topic">
+                <div class="forum-topic-main">
+                    {% include '@Forum/client/_avatar.html.twig' with {user: topic.author, size: 'sm'} %}
+                    <div class="forum-topic-text">
+                        <a class="forum-topic-title" href="{{ path('forum_topic', {slug: topic.slug}) }}">
+                            {% if topic.pinned %}<i class="fa-solid fa-thumbtack" title="{{ '@forum.topic.pinned'|trans }}"></i>{% endif %}
+                            {% if topic.locked %}<i class="fa-solid fa-lock" title="{{ '@forum.topic.locked'|trans }}"></i>{% endif %}
+                            {{ topic.title }}
+                        </a>
+                        <div class="forum-topic-meta">
+                            {% for tag in topic.tags %}
+                                <a class="forum-tag forum-tag-sm" href="{{ path('forum_tag', {slug: tag.slug}) }}" style="{{ tag.color ? '--tag:' ~ tag.color : '' }}">{{ tag }}</a>
+                            {% endfor %}
+                            <span class="forum-topic-by">{{ '@forum.list.by'|trans }} {% include '@Forum/client/_member.html.twig' with {user: topic.author} %}</span>
+                        </div>
+                    </div>
+                </div>
+            </td>
+            {% if show_category %}
+            <td class="col-cat">
+                {% if topic.category %}
+                <a class="forum-cat-badge" href="{{ path('forum_category', {slug: topic.category.slug}) }}" style="{{ topic.category.color ? '--cat:' ~ topic.category.color : '' }}">
+                    <i class="{{ topic.category.icon|default('fa-solid fa-comments') }}"></i> {{ topic.category.title }}
+                </a>
+                {% endif %}
+            </td>
+            {% endif %}
+            <td class="col-num">{{ topic.replies }}</td>
+            <td class="col-num">{{ topic.views }}</td>
+            <td class="col-activity">
+                {% set at = topic.activityAt %}
+                <time datetime="{{ at ? at|date('c') : '' }}" title="{{ at ? at|datetime('d MMMM yyyy, HH:mm') : '' }}">{{ at ? at|datetime('d MMM') : '' }}</time>
+                {% if topic.lastPoster %}<div class="forum-topic-last">{% include '@Forum/client/_member.html.twig' with {user: topic.lastPoster} %}</div>{% endif %}
+            </td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% endif %}

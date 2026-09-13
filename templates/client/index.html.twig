@@ -1,0 +1,41 @@
+{% extends '@Forum/client/layout.html.twig' %}
+
+{% block forum_body %}
+    {# The boards, grouped the way phpBB grouped forums under categories. #}
+    {% for group in groups %}
+        {% set boards = group.children|filter(b => is_granted('FORUM_READ', b)) %}
+        {% if boards|length %}
+        <section class="forum-group">
+            <h2 class="forum-group-title" style="{{ group.color ? '--cat:' ~ group.color : '' }}">
+                <i class="{{ group.icon|default('fa-solid fa-folder-open') }}"></i> {{ group.title }}
+            </h2>
+            <ul class="forum-boards">
+                {% for board in boards %}
+                    {% set c = counts[board.id]|default({topics: 0, replies: 0}) %}
+                    <li class="forum-board{{ board.locked ? ' is-locked' }}">
+                        <a class="forum-board-icon" href="{{ path('forum_category', {slug: board.slug}) }}" style="{{ board.color ? '--cat:' ~ board.color : '' }}"><i class="{{ board.icon|default('fa-solid fa-comments') }}"></i></a>
+                        <div class="forum-board-text">
+                            <a class="forum-board-title" href="{{ path('forum_category', {slug: board.slug}) }}">{{ board.title }}</a>
+                            {% if board.locked %}<i class="fa-solid fa-lock" title="{{ '@forum.board.locked'|trans }}"></i>{% endif %}
+                            {% if board.requiredRole %}<i class="fa-solid fa-user-shield" title="{{ '@forum.board.private'|trans }}"></i>{% endif %}
+                            {% if board.description %}<p class="forum-board-desc">{{ board.description }}</p>{% endif %}
+                        </div>
+                        <div class="forum-board-stats">
+                            <span><b>{{ c.topics }}</b> {{ '@forum.board.topics'|trans({'%count%': c.topics}) }}</span>
+                            <span><b>{{ c.replies }}</b> {{ '@forum.board.replies'|trans({'%count%': c.replies}) }}</span>
+                        </div>
+                    </li>
+                {% endfor %}
+            </ul>
+        </section>
+        {% endif %}
+    {% else %}
+        <p class="forum-empty">{{ '@forum.index.no_board'|trans }}</p>
+    {% endfor %}
+
+    <section class="forum-latest">
+        <h2 class="forum-section-title"><i class="fa-solid fa-bolt"></i> {{ '@forum.index.latest'|trans }}</h2>
+        {% include '@Forum/client/_topic_list.html.twig' with {topics: latest, show_category: true} %}
+        {{ paginator(latest, 'forum_index') }}
+    </section>
+{% endblock %}

@@ -1,0 +1,146 @@
+<?php
+
+namespace Base\Forum\Repository;
+
+use Base\Entity\Thread\Tag;
+use Base\Forum\Entity\Category;
+use Base\Forum\Entity\Topic;
+use Base\Repository\ThreadRepository;
+use Doctrine\ORM\Query;
+use Doctrine\ORM\QueryBuilder;
+
+/**
+ * Extends ThreadRepository (not ServiceEntityRepository) on purpose: Thread
+ * is #[Hierarchify], which requires HierarchifyTrait on the repository of
+ * every subclass, and that trait comes with the parent.
+ *
+ * @method Topic|null find($id, $lockMode = null, $lockVersion = null)
+ * @method Topic|null findOneBy(array $criteria, ?array $orderBy = null)
+ * @method Topic[]    findAll()
+ * @method Topic[]    findBy(array $criteria, ?array $orderBy = null, $limit = null, $offset = null)
+ */
+class TopicRepository extends ThreadRepository
+{
+    /**
+     * A listing query: pinned first, then by last activity. Soft-deleted
+     * topics are filtered by base-bundle's Trasheable filter, so nothing to
+     * do here about them.
+     */
+    public function createListQueryBuilder(): QueryBuilder
+    {
+        return $this->createQueryBuilder('t')
+            ->leftJoin('t.category', 'c')->addSelect('c')
+            ->leftJoin('t.lastPoster', 'lp')->addSelect('lp')
+            ->orderBy('t.pinned', 'DESC')
+            ->addOrderBy('t.lastPostAt', 'DESC')
+            ->addOrderBy('t.createdAt', 'DESC');
+    }
+
+    public function createCategoryQuery(Category $category): Query
+    {
+        return $this->createListQueryBuilder()
+            ->andWhere('t.category = :category')->setParameter('category', $category)
+            ->getQuery();
+    }
+
+    public function createTagQuery(Tag $tag): Query
+    {
+        return $this->createListQueryBuilder()
+            ->innerJoin('t.tags', 'tag')
+            ->andWhere('tag = :tag')->setParameter('tag', $tag)
+            ->getQuery();
+    }
+
+    /**
+     * Latest activity across the whole forum, for the front page and the
+     * "unread" style feeds - never pinned first here, that only makes sense
+     * inside a board.
+     */
+    public function createLatestQuery(array $readableCategoryIds = null): Query
+    {
+        $qb = $this->createQueryBuilder('t')
+            ->leftJoin('t.category', 'c')->addSelect('c')
+            ->leftJoin('t.lastPoster', 'lp')->addSelect('lp')
+            ->orderBy('t.lastPostAt', 'DESC')
+            ->addOrderBy('t.createdAt', 'DESC');
+
+        if (null !== $readableCategoryIds) {
+            $qb->andWhere('c.id IN (:ids)')->setParameter('ids', $readableCategoryIds ?: [0]);
+        }
+
+        return $qb->getQuery();
+    }
+
+    /**
+     * Plain title/content search: a LIKE over the topic title and its posts.
+     * Small forums do not need an index; when the site wants Typesense, the
+     * Topic entity is where a mapping goes.
+     */
+    public function createSearchQuery(string $term): Query
+    {
+        $like = '%' . mb_strtolower(trim($term)) . '%';
+
+        return $this->createListQueryBuilder()
+            ->leftJoin('t.translations', 'i')
+            ->leftJoin('t.posts', 'p')
+            ->andWhere('LOWER(i.title) LIKE :term OR LOWER(p.content) LIKE :term')
+            ->setParameter('term', $like)
+            ->distinct()
+            ->getQuery();
+    }
+
+    public function findOneBySlug(string $slug): ?Topic
+    {
+        return $this->createQueryBuilder('t')
+            ->leftJoin('t.category', 'c')->addSelect('c')
+            ->andWhere('t.slug = :slug')->setParameter('slug', $slug)
+            ->getQuery()->getOneOrNullResult();
+    }
+
+    /**
+     * A view is not an edit: bump the counter with a direct UPDATE so the
+     * Thread's updatedAt (Timestamp on update) is not touched by readers.
+     */
+    public function incrementViews(Topic $topic): void
+    {
+        $this->getEntityManager()->createQuery(
+            'UPDATE ' . Topic::class . ' t SET t.views = t.views + 1 WHERE t.id = :id'
+        )->setParameter('id', $topic->getId())->execute();
+    }
+
+    /**
+     * Per-board counters for the index page: topics and replies, in one
+     * query. Keyed by category id.
+     *
+     * @return array<int, array{topics:int, replies:int}>
+     */
+    public function countPerCategory(): array
+    {
+        $rows = $this->createQueryBuilder('t')
+            ->select('IDENTITY(t.category) AS category, COUNT(t.id) AS topics, COALESCE(SUM(t.replies), 0) AS replies')
+            ->groupBy('t.category')
+            ->getQuery()->getArrayResult();
+
+        $counts = [];
+        foreach ($rows as $row) {
+            $counts[(int) $row['category']] = ['topics' => (int) $row['topics'], 'replies' => (int) $row['replies']];
+        }
+
+        return $counts;
+    }
+
+    /**
+     * Tags in use on the forum, most used first - the tag cloud. Rows of
+     * [tag, count].
+     */
+    public function findTagUsage(int $limit = 30): array
+    {
+        return $this->createQueryBuilder('t')
+            ->select('tag AS tag, COUNT(t.id) AS usage')
+            ->innerJoin('t.tags', 'tag')
+            ->groupBy('tag.id')
+            ->orderBy('usage', 'DESC')
+            ->setMaxResults($limit)
+            ->getQuery()->getResult();
+    }
+}

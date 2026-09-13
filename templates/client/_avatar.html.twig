@@ -1,0 +1,17 @@
+{#
+ # A member's picture. The default asks base-bundle for the formatted avatar;
+ # an application whose members are drawn rather than photographed overrides
+ # this file (templates/bundles/ForumBundle/client/_avatar.html.twig).
+ #
+ # Variables: user (may be null for a deleted account), size ('sm'|'md').
+ #}
+{% set size = size|default('md') %}
+<span class="forum-avatar forum-avatar-{{ size }}">
+    {% if user is null %}
+        <i class="fa-solid fa-user-slash" aria-hidden="true"></i>
+    {% elseif user.getFormattedAvatar is defined %}
+        {{ user.getFormattedAvatar()|raw }}
+    {% else %}
+        <span class="forum-avatar-initial">{{ (user.username|default('?'))|first|upper }}</span>
+    {% endif %}
+</span>

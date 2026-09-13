@@ -1,0 +1,49 @@
+{#
+ # The forum's chrome, inside the site's own layout: a title band, the
+ # breadcrumb, the search box, then the page. Every forum page extends this.
+ #
+ # The application decides what "layout1.html.twig" is; the forum only asks
+ # for its `content` and `aside` blocks, the way base-bundle's own client
+ # templates do.
+ #}
+{% extends 'layout1.html.twig' %}
+
+{% block title %}{{ block('forum_title') is defined ? block('forum_title') : '@forum.index.title'|trans }}{% endblock %}
+
+{% block stylesheets %}
+    {{ parent() }}
+    <link rel="stylesheet" href="{{ asset('bundles/forum/css/forum.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="forum">
+    {% block forum_header %}
+    <header class="forum-header">
+        {# The application supplies the painted banner (see _banner.html.twig); this is the text fallback. #}
+        {% include '@Forum/client/_banner.html.twig' ignore missing %}
+
+        <nav class="forum-crumbs" aria-label="{{ '@forum.crumbs'|trans }}">
+            <a href="{{ path('forum_index') }}"><i class="fa-solid fa-comments"></i> {{ '@forum.index.title'|trans }}</a>
+            {% block forum_crumbs %}{% endblock %}
+        </nav>
+
+        <form class="forum-search" action="{{ path('forum_search') }}" method="get" role="search">
+            <input type="search" name="q" value="{{ term|default('') }}" minlength="3" placeholder="{{ '@forum.search.placeholder'|trans }}" aria-label="{{ '@forum.search.placeholder'|trans }}">
+            <button type="submit" aria-label="{{ '@forum.search.go'|trans }}"><i class="fa-solid fa-magnifying-glass"></i></button>
+        </form>
+    </header>
+    {% endblock %}
+
+    {% include 'flashbag.html.twig' ignore missing %}
+
+    {% block forum_body %}{% endblock %}
+</div>
+{% endblock %}
+
+{% block aside %}
+<div class="forum-aside">
+    {% block forum_aside %}
+        {% include '@Forum/client/_aside.html.twig' with {tags: tags|default([])} %}
+    {% endblock %}
+</div>
+{% endblock %}

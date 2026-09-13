@@ -1,0 +1,116 @@
+crumbs: "Breadcrumb"
+
+index:
+  title: "BBS"
+  subtitle: "the Archipelago's forums"
+  latest: "Latest discussions"
+  no_board: "No board has been opened yet."
+
+board:
+  topics: "{count, plural, one {topic} other {topics}}"
+  replies: "{count, plural, one {reply} other {replies}}"
+  locked: "This board is locked: read-only from now on."
+  private: "Restricted board"
+
+list:
+  topic: "Topic"
+  board: "Board"
+  replies: "Replies"
+  views: "Views"
+  activity: "Activity"
+  by: "by"
+  empty: "Nothing here yet. Be the first to start a topic!"
+
+topic:
+  new: "New topic"
+  new_hint: "A clear title, the right board, a tag or two: everyone finds their way."
+  edit: "Edit topic"
+  edit_hint: "Title and tags are changed here; the message itself is edited below the message."
+  publish: "Publish"
+  pinned: "Pinned topic"
+  locked: "Locked topic"
+  locked_note: "This topic is locked, it takes no more replies."
+  like: "Like"
+  liked: "Liked"
+  follow: "Follow"
+  following: "Following"
+  title:
+    blank: "Your topic needs a title."
+    short: "A title is at least {{ limit }} characters."
+    long: "A title is at most {{ limit }} characters."
+  category:
+    blank: "Choose the board to post in."
+
+post:
+  permalink: "Link to this post"
+  reply_to: "in reply to #%number%"
+  edited: "{count, plural, one {edited} other {edited # times}}"
+  deleted: "This post was deleted."
+  show_deleted: "Show deleted post"
+  quote: "Quote"
+  edit: "Edit"
+  delete: "Delete"
+  restore: "Restore"
+  delete_confirm: "Delete this post?"
+  restore_confirm: "Restore this post?"
+  content:
+    blank: "An empty post cannot be sent."
+    short: "A bit short, isn't it?"
+    long: "Your post exceeds {{ limit }} characters."
+
+reply:
+  title: "Reply"
+  send: "Send"
+  in_reply_to: "In reply to post #%number%"
+
+moderate:
+  pin: "Pin"
+  unpin: "Unpin"
+  lock: "Lock"
+  unlock: "Unlock"
+  delete: "Delete topic"
+  delete_confirm: "Delete this topic and all its replies?"
+
+search:
+  title: "Search"
+  placeholder: "Search the BBS…"
+  go: "Search"
+  hint: "Type at least three letters."
+  too_short: "Type at least three letters to search."
+  results_for: "Results for \"%term%\""
+
+aside:
+  write: "Speak up"
+  login_to_write: "<a href=\"%login%\">Sign in</a> or <a href=\"%register%\">create an account</a> to write on the BBS."
+  tags: "Tags"
+  help: "Good to know"
+  help_markdown: "Posts are written in Markdown: **bold**, _italic_, > quote, `code`."
+  help_mention: "Write @username to mention a member, >>12 to point at post #12."
+  help_follow: "Follow a topic to be told about replies."
+
+member:
+  deleted: "Vanished member"
+  level: "Level %level%"
+
+form:
+  title: "Title"
+  title_placeholder: "What do you want to talk about?"
+  category: "Board"
+  category_placeholder: "Pick a board…"
+  tags: "Tags"
+  tags_help: "Optional: one or more tags to find the topic again."
+  content: "Message"
+  content_placeholder: "Write your message here…"
+  reply: "Your reply"
+  reply_placeholder: "Write your reply here…"
+  markdown_help: "Markdown accepted: **bold**, _italic_, > quote, `code`, lists, links."
+  save: "Save"
+  cancel: "Cancel"
+
+flash:
+  topic_created: "Your topic is online!"
+  topic_updated: "Topic updated."
+  topic_deleted: "Topic deleted."
+  moderated: "Done."
+  board_locked: "This board takes no new topics."
+  flood: "Easy! Wait another %seconds% seconds before posting again."

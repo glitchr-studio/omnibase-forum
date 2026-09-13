@@ -1,0 +1,51 @@
+{# One post of a topic. Variables: post, topic. #}
+{% set can_edit = is_granted('FORUM_EDIT', post) %}
+{% set can_moderate = is_granted('FORUM_MODERATE') %}
+<li class="forum-post{{ post.isFirst ? ' is-first' }}{{ post.deleted ? ' is-deleted' }}" id="post-{{ post.id }}">
+    <aside class="forum-post-author">
+        {% include '@Forum/client/_avatar.html.twig' with {user: post.author, size: 'md'} %}
+        <div class="forum-post-author-name">{% include '@Forum/client/_member.html.twig' with {user: post.author} %}</div>
+        {% if post.author and post.author.level is defined %}
+            <div class="forum-post-author-level">{{ '@forum.member.level'|trans({'%level%': post.author.level}) }}</div>
+        {% endif %}
+    </aside>
+
+    <div class="forum-post-body">
+        <header class="forum-post-head">
+            <a class="forum-post-number" href="#post-{{ post.id }}" title="{{ '@forum.post.permalink'|trans }}">#{{ post.number }}</a>
+            <time datetime="{{ post.createdAt|date('c') }}">{{ post.createdAt|datetime('d MMMM yyyy, HH:mm') }}</time>
+            {% if post.replyTo %}
+                <a class="forum-post-replyto" href="#post-{{ post.replyTo.id }}"><i class="fa-solid fa-reply"></i> {{ '@forum.post.reply_to'|trans({'%number%': post.replyTo.number}) }}</a>
+            {% endif %}
+            {% if post.editedAt %}
+                <span class="forum-post-edited" title="{{ post.editedAt|datetime('d MMMM yyyy, HH:mm') }}">{{ '@forum.post.edited'|trans({'%count%': post.editCount}) }}</span>
+            {% endif %}
+        </header>
+
+        {% if post.deleted %}
+            <div class="forum-post-content forum-post-deleted">
+                <i class="fa-solid fa-eraser"></i> {{ '@forum.post.deleted'|trans }}
+                {% if can_moderate %}<details><summary>{{ '@forum.post.show_deleted'|trans }}</summary>{{ post.content|forum_markdown }}</details>{% endif %}
+            </div>
+        {% else %}
+            <div class="forum-post-content">{{ post.content|forum_markdown }}</div>
+        {% endif %}
+
+        <footer class="forum-post-actions">
+            {% if is_granted('FORUM_REPLY', topic) and not post.deleted %}
+                <a class="forum-btn forum-btn-ghost forum-btn-sm" href="{{ path('forum_topic', {slug: topic.slug, quote: post.id}) }}#reply"><i class="fa-solid fa-quote-left"></i> {{ '@forum.post.quote'|trans }}</a>
+            {% endif %}
+            {% if can_edit and not post.deleted %}
+                <a class="forum-btn forum-btn-ghost forum-btn-sm" href="{{ path('forum_post_edit', {id: post.id}) }}"><i class="fa-solid fa-pen"></i> {{ '@forum.post.edit'|trans }}</a>
+            {% endif %}
+            {% if can_edit and (not post.deleted or can_moderate) %}
+                <form method="post" action="{{ path('forum_post_delete', {id: post.id}) }}" class="forum-inline-form" data-forum-moderate>
+                    <input type="hidden" name="_token" value="{{ csrf_token('forum_post_' ~ post.id) }}">
+                    <button class="forum-btn forum-btn-ghost forum-btn-sm" data-confirm="{{ (post.deleted ? '@forum.post.restore_confirm' : '@forum.post.delete_confirm')|trans }}">
+                        <i class="fa-solid fa-{{ post.deleted ? 'rotate-left' : 'trash' }}"></i> {{ (post.deleted ? '@forum.post.restore' : '@forum.post.delete')|trans }}
+                    </button>
+                </form>
+            {% endif %}
+        </footer>
+    </div>
+</li>

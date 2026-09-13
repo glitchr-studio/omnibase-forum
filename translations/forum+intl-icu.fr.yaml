@@ -1,0 +1,116 @@
+crumbs: "Fil d'Ariane"
+
+index:
+  title: "BBS"
+  subtitle: "les forums de l'Archipel"
+  latest: "Dernières discussions"
+  no_board: "Aucun forum n'a encore été ouvert."
+
+board:
+  topics: "{count, plural, =0 {sujet} one {sujet} other {sujets}}"
+  replies: "{count, plural, =0 {réponse} one {réponse} other {réponses}}"
+  locked: "Ce forum est verrouillé : on y lit, on n'y écrit plus."
+  private: "Forum réservé"
+
+list:
+  topic: "Sujet"
+  board: "Forum"
+  replies: "Rép."
+  views: "Vues"
+  activity: "Activité"
+  by: "par"
+  empty: "Rien par ici pour l'instant. Sois le premier à lancer un sujet !"
+
+topic:
+  new: "Nouveau sujet"
+  new_hint: "Un titre clair, le bon forum, une ou deux étiquettes : tout le monde s'y retrouve."
+  edit: "Modifier le sujet"
+  edit_hint: "Le titre et les étiquettes se changent ici ; le message lui-même se modifie sous le message."
+  publish: "Publier"
+  pinned: "Sujet épinglé"
+  locked: "Sujet verrouillé"
+  locked_note: "Ce sujet est verrouillé, on ne peut plus y répondre."
+  like: "J'aime"
+  liked: "Aimé"
+  follow: "Suivre"
+  following: "Suivi"
+  title:
+    blank: "Ton sujet a besoin d'un titre."
+    short: "Un titre, c'est au moins {{ limit }} caractères."
+    long: "Un titre, c'est au plus {{ limit }} caractères."
+  category:
+    blank: "Choisis le forum où poster."
+
+post:
+  permalink: "Lien vers ce message"
+  reply_to: "en réponse à #%number%"
+  edited: "{count, plural, one {modifié} other {modifié # fois}}"
+  deleted: "Ce message a été supprimé."
+  show_deleted: "Voir le message supprimé"
+  quote: "Citer"
+  edit: "Modifier"
+  delete: "Supprimer"
+  restore: "Restaurer"
+  delete_confirm: "Supprimer ce message ?"
+  restore_confirm: "Restaurer ce message ?"
+  content:
+    blank: "Un message vide, ça ne se poste pas."
+    short: "Un peu court, non ?"
+    long: "Ton message dépasse {{ limit }} caractères."
+
+reply:
+  title: "Répondre"
+  send: "Envoyer"
+  in_reply_to: "En réponse au message #%number%"
+
+moderate:
+  pin: "Épingler"
+  unpin: "Désépingler"
+  lock: "Verrouiller"
+  unlock: "Déverrouiller"
+  delete: "Supprimer le sujet"
+  delete_confirm: "Supprimer ce sujet et toutes ses réponses ?"
+
+search:
+  title: "Recherche"
+  placeholder: "Chercher dans le BBS…"
+  go: "Chercher"
+  hint: "Tape au moins trois lettres."
+  too_short: "Tape au moins trois lettres pour chercher."
+  results_for: "Résultats pour « %term% »"
+
+aside:
+  write: "Prendre la parole"
+  login_to_write: "<a href=\"%login%\">Connecte-toi</a> ou <a href=\"%register%\">crée un compte</a> pour écrire sur le BBS."
+  tags: "Étiquettes"
+  help: "Bon à savoir"
+  help_markdown: "Les messages s'écrivent en Markdown : **gras**, _italique_, > citation, `code`."
+  help_mention: "Écris @pseudo pour mentionner un membre, >>12 pour renvoyer au message n°12."
+  help_follow: "Suis un sujet pour être prévenu des réponses."
+
+member:
+  deleted: "Membre disparu"
+  level: "Niveau %level%"
+
+form:
+  title: "Titre"
+  title_placeholder: "De quoi veux-tu parler ?"
+  category: "Forum"
+  category_placeholder: "Choisis un forum…"
+  tags: "Étiquettes"
+  tags_help: "Facultatif : une ou plusieurs étiquettes pour retrouver le sujet."
+  content: "Message"
+  content_placeholder: "Écris ton message ici…"
+  reply: "Ta réponse"
+  reply_placeholder: "Écris ta réponse ici…"
+  markdown_help: "Markdown accepté : **gras**, _italique_, > citation, `code`, listes, liens."
+  save: "Enregistrer"
+  cancel: "Annuler"
+
+flash:
+  topic_created: "Ton sujet est en ligne !"
+  topic_updated: "Sujet mis à jour."
+  topic_deleted: "Sujet supprimé."
+  moderated: "C'est fait."
+  board_locked: "Ce forum n'accepte plus de nouveaux sujets."
+  flood: "Doucement ! Attends encore %seconds% secondes avant de poster à nouveau."

@@ -1,0 +1,48 @@
+{
+    "name": "glitchr/base-bundle-forum",
+    "type": "symfony-bundle",
+    "description": "Discussion forum for base-bundle: categories, topics built on Thread (tags, followers, likes), markdown posts, moderation and admin CRUD",
+    "keywords": ["symfony", "forum", "bbs", "discussion"],
+    "homepage": "https://gitlab.glitchr.dev/public-repository/symfony/bundle/base/extension/forum",
+    "license": "LGPL-3.0-or-later",
+    "authors": [
+        {
+            "name": "Marco Meyer",
+            "email": "marco.meyer@glitchr.io"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "Base\\Forum\\": "./src"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Tests\\Base\\Forum\\": "./tests"
+        }
+    },
+    "require": {
+        "php": "^8.2",
+        "symfony/config": "^6.0|^7.0|^8.0",
+        "symfony/dependency-injection": "^6.0|^7.0|^8.0",
+        "symfony/http-kernel": "^6.0|^7.0|^8.0",
+        "symfony/form": "^6.0|^7.0|^8.0",
+        "symfony/security-bundle": "^6.0|^7.0|^8.0",
+        "doctrine/orm": "^2.15|^3.0",
+        "league/commonmark": "^2.4",
+        "glitchr/base-bundle": "3.0.*-dev"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^9.6",
+        "symfony/framework-bundle": "^6.0|^7.0|^8.0",
+        "symfony/twig-bundle": "^6.0|^7.0|^8.0",
+        "symfony/var-dumper": "^6.0|^7.0|^8.0"
+    },
+    "config": {
+        "preferred-install": {
+            "*": "dist"
+        },
+        "sort-packages": true,
+        "minimum-stability": "dev"
+    }
+}

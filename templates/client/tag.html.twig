@@ -1,0 +1,16 @@
+{% extends '@Forum/client/layout.html.twig' %}
+
+{% block forum_title %}#{{ tag }}{% endblock %}
+{% block forum_crumbs %}<span>›</span> <span><i class="fa-solid fa-tag"></i> {{ tag }}</span>{% endblock %}
+
+{% block forum_body %}
+    <section class="forum-board-head" style="{{ tag.color ? '--cat:' ~ tag.color : '' }}">
+        <div class="forum-board-head-text">
+            <h2><i class="fa-solid fa-tag"></i> {{ tag }}</h2>
+            {% if tag.description is defined and tag.description %}<p>{{ tag.description }}</p>{% endif %}
+        </div>
+    </section>
+
+    {% include '@Forum/client/_topic_list.html.twig' with {topics: topics, show_category: true} %}
+    {{ paginator(topics, 'forum_tag', {slug: tag.slug}) }}
+{% endblock %}

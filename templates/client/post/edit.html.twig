@@ -1,0 +1,25 @@
+{% extends '@Forum/client/layout.html.twig' %}
+
+{% set topic = post.topic %}
+{% block forum_title %}{{ '@forum.post.edit'|trans }}{% endblock %}
+{% block forum_crumbs %}
+    {% if topic.category %}<span>›</span> <a href="{{ path('forum_category', {slug: topic.category.slug}) }}">{{ topic.category.title }}</a>{% endif %}
+    <span>›</span> <a href="{{ path('forum_topic', {slug: topic.slug}) }}">{{ topic.title }}</a>
+    <span>›</span> <span>{{ '@forum.post.edit'|trans }}</span>
+{% endblock %}
+
+{% block forum_body %}
+    <section class="forum-board-head">
+        <div class="forum-board-head-text">
+            <h2><i class="fa-solid fa-pen"></i> {{ '@forum.post.edit'|trans }} <small>#{{ post.number }}</small></h2>
+        </div>
+    </section>
+
+    {{ form_start(form, {attr: {class: 'forum-form'}}) }}
+        {{ form_row(form.content) }}
+        <div class="forum-form-actions">
+            <button type="submit" class="forum-btn forum-btn-primary"><i class="fa-solid fa-check"></i> {{ '@forum.form.save'|trans }}</button>
+            <a class="forum-btn forum-btn-ghost" href="{{ path('forum_topic', {slug: topic.slug}) }}#post-{{ post.id }}">{{ '@forum.form.cancel'|trans }}</a>
+        </div>
+    {{ form_end(form) }}
+{% endblock %}
