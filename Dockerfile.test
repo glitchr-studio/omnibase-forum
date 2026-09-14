@@ -1,0 +1,33 @@
+# syntax=docker/dockerfile:1
+#
+# Standalone test runner for glitchr/base-bundle-forum — installs the bundle
+# as its own root package (composer.json declares the VCS repositories for
+# its glitchr/* dependencies), pulling in require-dev (phpunit) with it. No
+# demo app scaffolding, unlike the root Dockerfile which tours the bundle
+# inside a real Symfony app.
+#
+#   docker compose run --rm test                    # phpunit
+#   docker compose run --rm test composer test-coverage
+#     → var/coverage/index.html on the host (bind-mounted)
+
+FROM php:8.4-cli
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        git unzip libicu-dev libzip-dev libpng-dev libjpeg-dev libwebp-dev libfreetype-dev libxslt1-dev libmagickwand-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN docker-php-ext-configure gd --with-jpeg --with-webp --with-freetype \
+    && docker-php-ext-install -j"$(nproc)" intl zip gd bcmath ftp xsl exif \
+    && pecl install imagick igbinary xdebug \
+    && docker-php-ext-enable imagick igbinary xdebug
+
+COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
+ENV COMPOSER_ALLOW_SUPERUSER=1
+
+WORKDIR /srv/base-bundle-forum
+COPY . .
+
+RUN composer install --no-interaction --no-progress
+
+CMD ["composer", "test"]

@@ -42,6 +42,27 @@ forum:
 Then `bin/console doctrine:migrations:diff && bin/console doctrine:migrations:migrate`
 and `bin/console assets:install` (the stylesheet lives in `public/css/forum.css`).
 
+## Try it in one command
+
+A self-contained demo (a bare Symfony skeleton, base-bundle, this checkout and SQLite) ships in the root [Dockerfile](Dockerfile). Its first page seeds a small board — two members, a group with a public and a staff-only board, three tags, a topic with a reply — signs you in, reports on the wiring (a Topic *is* a Thread, the Markdown renderer, what the voter grants), and links to the forum itself:
+
+```bash
+docker build -t base-bundle-forum-demo .
+docker run --rm -p 8000:8000 base-bundle-forum-demo
+# → http://localhost:8000/     the tour
+# → http://localhost:8000/bbs  the forum
+```
+
+The demo app under [example/app/](example/app/) doubles as the minimal host: the `bundles.php`, `routes.yaml`, `doctrine.yaml`, `security.yaml` and `forum.yaml` an application needs, and a `layout1.html.twig` showing the only contract the forum's templates have with their host — `content`, `aside`, `title`, `stylesheets` and `javascripts` blocks.
+
+## Development
+
+```bash
+make tests                               # phpunit, standalone or from inside a host app
+docker compose run --rm test             # the same, in a clean php:8.4 container
+docker compose run --rm test composer test-coverage   # → var/coverage/index.html
+```
+
 ## Routes
 
 | name | path |
@@ -68,6 +89,6 @@ Likes and follows reuse base-bundle's `/api/thread/{slug}/{like,unlike,follow,un
 
 ## Admin
 
-With base-bundle-admin installed, `Base\Forum\Controller\Admin\Crud\{Category,Topic}CrudController`
+base-bundle-admin is a requirement, not an option: base-bundle walks every class of an extension's `src/` when it builds its `App\` aliases, so CRUD controllers extending an admin class that is not installed would take the whole application down. With it, `Base\Forum\Controller\Admin\Crud\{Category,Topic}CrudController`
 register themselves; link them from the dashboard with
 `MenuItem::linkToCrud(\Base\Forum\Entity\Category::class, ...)`.
