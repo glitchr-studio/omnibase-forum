@@ -41,7 +41,7 @@ class TopicType extends AbstractType
                 'query_builder' => fn (CategoryRepository $r) => $r->createQueryBuilder('c')
                     ->innerJoin('c.parent', 'p')->addSelect('p')
                     ->andWhere('c.locked = false')
-                    ->orderBy('p.position', 'ASC')->addOrderBy('c.position', 'ASC')->addOrderBy('c.title', 'ASC'),
+                    ->orderBy('p.position', \SortDirection::Ascending)->addOrderBy('c.position', \SortDirection::Ascending)->addOrderBy('c.title', \SortDirection::Ascending),
                 'placeholder' => 'form.category_placeholder',
             ])
             ->add('tags', EntityType::class, [

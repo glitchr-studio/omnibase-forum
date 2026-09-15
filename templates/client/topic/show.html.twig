@@ -54,7 +54,7 @@
             </div>
         </header>
 
-        {{ paginator(posts, 'forum_topic', {slug: topic.slug}) }}
+        {% if posts.totalPages > 1 %}{{ paginator(posts, 'forum_topic', {slug: topic.slug}) }}{% endif %}
 
         <ol class="forum-posts" start="{{ (posts.page - 1) * posts.pageSize + 1 }}">
             {% for post in posts %}
@@ -62,7 +62,7 @@
             {% endfor %}
         </ol>
 
-        {{ paginator(posts, 'forum_topic', {slug: topic.slug}) }}
+        {% if posts.totalPages > 1 %}{{ paginator(posts, 'forum_topic', {slug: topic.slug}) }}{% endif %}
 
         {% if reply %}
         <section class="forum-reply" id="reply">

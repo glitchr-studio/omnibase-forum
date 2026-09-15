@@ -36,6 +36,15 @@ class ForumController extends AbstractController
         $this->topics = $entityManager->getRepository(\Base\Forum\Entity\Topic::class);
     }
 
+    /**
+     * The index's views. "classique" is the phpBB board list, grouped; "fil"
+     * is the flat, Discourse-like feed with the announcements and the pinned
+     * topics as post-its on top. A third one (the historical message tree)
+     * slots in here with its own template.
+     */
+    public const VIEWS = ['classique', 'fil'];
+    public const VIEW_COOKIE = 'FORUM/VIEW';
+
     #[Route('/bbs', name: 'forum_index')]
     public function Index(Request $request): Response
     {
@@ -45,22 +54,55 @@ class ForumController extends AbstractController
         // Boards the visitor may read; the latest-activity feed is filtered
         // to them so a private board never leaks its titles.
         $readable = [];
+        $locked = [];
         foreach ($groups as $group) {
             foreach ($group->getChildren() as $board) {
                 if ($this->isGranted(ForumVoter::READ, $board)) {
                     $readable[] = $board->getId();
+                    if ($board->isLocked()) {
+                        $locked[] = $board->getId();
+                    }
                 }
             }
         }
 
         $latest = $this->paginator->paginate($this->topics->createLatestQuery($readable), $request->query->getInt('page', 1), $this->topicsPerPage);
 
-        return $this->render('@Forum/client/index.html.twig', [
-            'groups' => $groups,
-            'counts' => $counts,
-            'latest' => $latest,
-            'tags' => $this->topics->findTagUsage(),
-        ]);
+        // The view asked for (?vue=), or the one this browser last chose.
+        $asked = (string) $request->query->get('vue', '');
+        $view = in_array($asked, self::VIEWS, true) ? $asked : (string) $request->cookies->get(self::VIEW_COOKIE, self::VIEWS[0]);
+        if (!in_array($view, self::VIEWS, true)) {
+            $view = self::VIEWS[0];
+        }
+
+        if ('fil' === $view) {
+            $response = $this->render('@Forum/client/index_fil.html.twig', [
+                'view' => $view,
+                'groups' => $groups,
+                'announcements' => $this->topics->findAnnouncements($locked),
+                'pinned' => $this->topics->findPinned($readable),
+                'latest' => $latest,
+                'tags' => $this->topics->findTagUsage(),
+            ]);
+        } else {
+            $response = $this->render('@Forum/client/index.html.twig', [
+                'view' => $view,
+                'groups' => $groups,
+                'counts' => $counts,
+                // Each board's last message: who, when, in which topic.
+                'last' => $this->topics->findLastPerCategory(),
+                'latest' => $latest,
+                'tags' => $this->topics->findTagUsage(),
+            ]);
+        }
+
+        // Remembered per browser, a year: the choice holds for a reader who
+        // is not signed in as much as for a member.
+        if ($asked === $view) {
+            $response->headers->setCookie(\Symfony\Component\HttpFoundation\Cookie::create(self::VIEW_COOKIE, $view, new \DateTimeImmutable('+1 year'), '/', null, $request->isSecure(), true, false, 'lax'));
+        }
+
+        return $response;
     }
 
     #[Route('/bbs/c/{slug}', name: 'forum_category')]

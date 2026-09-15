@@ -13,16 +13,35 @@
                 {% for board in boards %}
                     {% set c = counts[board.id]|default({topics: 0, replies: 0}) %}
                     <li class="forum-board{{ board.locked ? ' is-locked' }}">
-                        <a class="forum-board-icon" href="{{ path('forum_category', {slug: board.slug}) }}" style="{{ board.color ? '--cat:' ~ board.color : '' }}"><i class="{{ board.icon|default('fa-solid fa-comments') }}"></i></a>
+                        {# The folder badge (_folder.html.twig): a lock on a locked board, the announce one on a board reserved to a role, the plain one otherwise. #}
+                        <a class="forum-board-icon" href="{{ path('forum_category', {slug: board.slug}) }}">
+                            {% include '@Forum/client/_folder.html.twig' with {state: board.locked ? 'lock' : (board.requiredRole ? 'announce' : 'default'), size: 40} %}
+                        </a>
                         <div class="forum-board-text">
                             <a class="forum-board-title" href="{{ path('forum_category', {slug: board.slug}) }}">{{ board.title }}</a>
                             {% if board.locked %}<i class="fa-solid fa-lock" title="{{ '@forum.board.locked'|trans }}"></i>{% endif %}
                             {% if board.requiredRole %}<i class="fa-solid fa-user-shield" title="{{ '@forum.board.private'|trans }}"></i>{% endif %}
                             {% if board.description %}<p class="forum-board-desc">{{ board.description }}</p>{% endif %}
                         </div>
+                        {# The counters as phpBB set them: topics, then messages - a topic's first post counts as one. #}
+                        {% set messages = c.topics + c.replies %}
                         <div class="forum-board-stats">
                             <span><b>{{ c.topics }}</b> {{ '@forum.board.topics'|trans({'%count%': c.topics}) }}</span>
-                            <span><b>{{ c.replies }}</b> {{ '@forum.board.replies'|trans({'%count%': c.replies}) }}</span>
+                            <span><b>{{ messages }}</b> {{ '@forum.board.messages'|trans({'%count%': messages}) }}</span>
+                        </div>
+                        {# The last message: its topic, when, and who wrote it. #}
+                        {% set lt = last[board.id]|default(null) %}
+                        <div class="forum-board-last">
+                            {% if lt %}
+                                <a class="forum-board-last-topic" href="{{ path('forum_topic', {slug: lt.slug}) }}" title="{{ lt.title }}">{{ lt.title }}</a>
+                                {% set at = lt.activityAt %}
+                                <time datetime="{{ at ? at|date('c') : '' }}" title="{{ at ? at|datetime('d MMMM yyyy, HH:mm') : '' }}">{{ at ? at|datetime('d MMM yyyy, HH:mm') : '' }}</time>
+                                {% if lt.lastPoster or lt.author %}
+                                    <span class="forum-board-last-by">{{ '@forum.list.by'|trans }} {% include '@Forum/client/_member.html.twig' with {user: lt.lastPoster ?? lt.author} %}</span>
+                                {% endif %}
+                            {% else %}
+                                <span class="forum-board-last-none">{{ '@forum.board.no_message'|trans }}</span>
+                            {% endif %}
                         </div>
                     </li>
                 {% endfor %}
@@ -36,6 +55,6 @@
     <section class="forum-latest">
         <h2 class="forum-section-title"><i class="fa-solid fa-bolt"></i> {{ '@forum.index.latest'|trans }}</h2>
         {% include '@Forum/client/_topic_list.html.twig' with {topics: latest, show_category: true} %}
-        {{ paginator(latest, 'forum_index') }}
+        {% if latest.totalPages > 1 %}{{ paginator(latest, 'forum_index') }}{% endif %}
     </section>
 {% endblock %}

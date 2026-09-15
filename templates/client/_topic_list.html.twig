@@ -3,7 +3,8 @@
  # counters. Variables: topics (a Pagination), show_category (bool).
  #}
 {% set show_category = show_category|default(true) %}
-{% if topics|length == 0 %}
+{# Pagination::count() is never 0 - the total says whether there is anything. #}
+{% if (topics.totalCount ?? topics|length) == 0 %}
     <p class="forum-empty">{{ '@forum.list.empty'|trans }}</p>
 {% else %}
 <table class="forum-topics">
@@ -22,6 +23,8 @@
         <tr class="forum-topic-row{{ topic.pinned ? ' is-pinned' }}{{ topic.locked ? ' is-locked' }}{{ hot ? ' is-hot' }}">
             <td class="col-topic">
                 <div class="forum-topic-main">
+                    {# The folder badge says the topic's state: pinned, locked, hot, or plain. #}
+                    {% include '@Forum/client/_folder.html.twig' with {state: topic.pinned ? 'sticky' : (topic.locked ? 'lock' : (hot ? 'hot' : 'default')), title: topic.pinned ? '@forum.topic.pinned'|trans : (topic.locked ? '@forum.topic.locked'|trans : '')} %}
                     {% include '@Forum/client/_avatar.html.twig' with {user: topic.author, size: 'sm'} %}
                     <div class="forum-topic-text">
                         <a class="forum-topic-title" href="{{ path('forum_topic', {slug: topic.slug}) }}">

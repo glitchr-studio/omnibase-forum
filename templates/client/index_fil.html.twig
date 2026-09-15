@@ -1,0 +1,92 @@
+{#
+ # The index as a flat feed, Discourse-like: the staff's announcements on top,
+ # the pinned topics as post-its, then every discussion of every readable
+ # board by last activity, each labelled with its board. The classic view
+ # (index.html.twig) keeps the grouped board list; ForumController::Index
+ # picks one or the other. Variables: announcements, pinned, latest, groups.
+ #}
+{% extends '@Forum/client/layout.html.twig' %}
+
+{% block forum_body %}
+    {% if announcements|length %}
+    <section class="forum-announcements" aria-label="{{ '@forum.fil.announcements'|trans }}">
+        {% for topic in announcements %}
+        <a class="forum-announcement" href="{{ path('forum_topic', {slug: topic.slug}) }}" style="{{ topic.category and topic.category.color ? '--cat:' ~ topic.category.color : '' }}">
+            <span class="forum-announcement-kicker"><i class="fa-solid fa-bullhorn"></i> {{ topic.category ? topic.category.title : '@forum.fil.announcements'|trans }}</span>
+            <span class="forum-announcement-title">{{ topic.title }}</span>
+            {% set at = topic.createdAt %}
+            <time datetime="{{ at ? at|date('c') : '' }}">{{ at ? at|datetime('d MMMM yyyy') : '' }}</time>
+        </a>
+        {% endfor %}
+    </section>
+    {% endif %}
+
+    {% if pinned|length %}
+    <section class="forum-postits">
+        <h2 class="forum-section-title"><i class="fa-solid fa-thumbtack"></i> {{ '@forum.fil.pinned'|trans }}</h2>
+        <ul>
+            {% for topic in pinned %}
+            <li class="forum-postit" style="--tilt: {{ loop.index is odd ? '-1.2deg' : '1deg' }}">
+                <a href="{{ path('forum_topic', {slug: topic.slug}) }}">
+                    <span class="forum-postit-title">{{ topic.title }}</span>
+                    {% if topic.category %}<span class="forum-postit-board">{{ topic.category.title }}</span>{% endif %}
+                    <span class="forum-postit-meta"><i class="fa-regular fa-comment"></i> {{ topic.replies }}</span>
+                </a>
+            </li>
+            {% endfor %}
+        </ul>
+    </section>
+    {% endif %}
+
+    <section class="forum-feed">
+        <h2 class="forum-section-title"><i class="fa-solid fa-bolt"></i> {{ '@forum.fil.latest'|trans }}</h2>
+
+        {# The boards as filter chips, each leading to its own list. #}
+        <nav class="forum-chips" aria-label="{{ '@forum.list.board'|trans }}">
+            {% for group in groups %}
+                {% for board in group.children|filter(b => is_granted('FORUM_READ', b)) %}
+                    <a class="forum-chip" href="{{ path('forum_category', {slug: board.slug}) }}" style="{{ (board.color ?: group.color) ? '--cat:' ~ (board.color ?: group.color) : '' }}">{{ board.title }}</a>
+                {% endfor %}
+            {% endfor %}
+        </nav>
+
+        {% if latest|length == 0 %}
+            <p class="forum-empty">{{ '@forum.list.empty'|trans }}</p>
+        {% else %}
+        <ol class="forum-feed-list">
+            {% for topic in latest %}
+            {% set at = topic.activityAt %}
+            <li class="forum-feed-row{{ topic.pinned ? ' is-pinned' }}{{ topic.locked ? ' is-locked' }}">
+                <div class="forum-feed-avatars">
+                    {% include '@Forum/client/_avatar.html.twig' with {user: topic.author, size: 'sm'} %}
+                    {% if topic.lastPoster and topic.lastPoster != topic.author %}
+                        {% include '@Forum/client/_avatar.html.twig' with {user: topic.lastPoster, size: 'sm'} %}
+                    {% endif %}
+                </div>
+                <div class="forum-feed-main">
+                    <a class="forum-topic-title" href="{{ path('forum_topic', {slug: topic.slug}) }}">
+                        {% if topic.pinned %}<i class="fa-solid fa-thumbtack" title="{{ '@forum.topic.pinned'|trans }}"></i>{% endif %}
+                        {% if topic.locked %}<i class="fa-solid fa-lock" title="{{ '@forum.topic.locked'|trans }}"></i>{% endif %}
+                        {{ topic.title }}
+                    </a>
+                    <div class="forum-topic-meta">
+                        {% if topic.category %}
+                        <a class="forum-cat-badge" href="{{ path('forum_category', {slug: topic.category.slug}) }}" style="{{ topic.category.color ? '--cat:' ~ topic.category.color : '' }}"><span class="forum-cat-dot"></span>{{ topic.category.title }}</a>
+                        {% endif %}
+                        {% for tag in topic.tags %}
+                            <a class="forum-tag forum-tag-sm" href="{{ path('forum_tag', {slug: tag.slug}) }}" style="{{ tag.color ? '--tag:' ~ tag.color : '' }}">{{ tag }}</a>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="forum-feed-num" title="{{ '@forum.list.replies'|trans }}"><b>{{ topic.replies }}</b><span>{{ '@forum.list.replies'|trans }}</span></div>
+                <div class="forum-feed-num" title="{{ '@forum.list.views'|trans }}"><b>{{ topic.views }}</b><span>{{ '@forum.list.views'|trans }}</span></div>
+                <div class="forum-feed-when">
+                    <time datetime="{{ at ? at|date('c') : '' }}" title="{{ at ? at|datetime('d MMMM yyyy, HH:mm') : '' }}">{{ at ? at|datetime('d MMM') : '' }}</time>
+                </div>
+            </li>
+            {% endfor %}
+        </ol>
+        {% if latest.totalPages > 1 %}{{ paginator(latest, 'forum_index', {vue: 'fil'}) }}{% endif %}
+        {% endif %}
+    </section>
+{% endblock %}

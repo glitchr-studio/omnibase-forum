@@ -23,7 +23,7 @@ class CategoryRepository extends ServiceEntityRepository
     {
         $all = $this->createQueryBuilder('c')
             ->leftJoin('c.parent', 'p')->addSelect('p')
-            ->orderBy('c.position', 'ASC')->addOrderBy('c.title', 'ASC')
+            ->orderBy('c.position', \SortDirection::Ascending)->addOrderBy('c.title', \SortDirection::Ascending)
             ->getQuery()->getResult();
 
         return array_values(array_filter($all, fn (Category $c) => $c->isGroup()));
@@ -34,7 +34,7 @@ class CategoryRepository extends ServiceEntityRepository
     {
         return $this->createQueryBuilder('c')
             ->innerJoin('c.parent', 'p')->addSelect('p')
-            ->orderBy('p.position', 'ASC')->addOrderBy('c.position', 'ASC')->addOrderBy('c.title', 'ASC')
+            ->orderBy('p.position', \SortDirection::Ascending)->addOrderBy('c.position', \SortDirection::Ascending)->addOrderBy('c.title', \SortDirection::Ascending)
             ->getQuery()->getResult();
     }
 

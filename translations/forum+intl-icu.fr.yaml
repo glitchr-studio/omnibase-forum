@@ -9,6 +9,8 @@ index:
 board:
   topics: "{count, plural, =0 {sujet} one {sujet} other {sujets}}"
   replies: "{count, plural, =0 {réponse} one {réponse} other {réponses}}"
+  messages: "{count, plural, =0 {message} one {message} other {messages}}"
+  no_message: "Aucun message"
   locked: "Ce forum est verrouillé : on y lit, on n'y écrit plus."
   private: "Forum réservé"
 
@@ -114,3 +116,13 @@ flash:
   moderated: "C'est fait."
   board_locked: "Ce forum n'accepte plus de nouveaux sujets."
   flood: "Doucement ! Attends encore {seconds} secondes avant de poster à nouveau."
+
+view:
+  label: "Affichage du BBS"
+  classique: "Classique"
+  fil: "Fil"
+
+fil:
+  announcements: "Annonces"
+  pinned: "Post-it"
+  latest: "Toutes les discussions"

@@ -9,6 +9,8 @@ index:
 board:
   topics: "{count, plural, one {topic} other {topics}}"
   replies: "{count, plural, one {reply} other {replies}}"
+  messages: "{count, plural, one {message} other {messages}}"
+  no_message: "No message yet"
   locked: "This board is locked: read-only from now on."
   private: "Restricted board"
 
@@ -114,3 +116,13 @@ flash:
   moderated: "Done."
   board_locked: "This board takes no new topics."
   flood: "Easy! Wait another {seconds} seconds before posting again."
+
+view:
+  label: "BBS display"
+  classique: "Classic"
+  fil: "Feed"
+
+fil:
+  announcements: "Announcements"
+  pinned: "Pinned"
+  latest: "All discussions"

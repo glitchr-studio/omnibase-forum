@@ -29,7 +29,7 @@ class Topic extends Thread implements LinkableInterface
     protected ?Category $category = null;
 
     #[ORM\OneToMany(targetEntity: Post::class, mappedBy: 'topic', cascade: ['persist', 'remove'], orphanRemoval: true)]
-    #[ORM\OrderBy(['createdAt' => 'ASC', 'id' => 'ASC'])]
+    #[ORM\OrderBy(['createdAt' => \SortDirection::Ascending, 'id' => \SortDirection::Ascending])]
     protected Collection $posts;
 
     /** Pinned topics stay on top of their board (phpBB's "sticky"). */

@@ -9,7 +9,7 @@
 {% block forum_body %}
     <section class="forum-board-head" style="{{ category.color ? '--cat:' ~ category.color : '' }}">
         <div class="forum-board-head-text">
-            <h2><i class="{{ category.icon|default('fa-solid fa-comments') }}"></i> {{ category.title }}
+            <h2>{% include '@Forum/client/_folder.html.twig' with {state: category.locked ? 'lock' : (category.requiredRole ? 'announce' : 'default'), size: 32} %} {{ category.title }}
                 {% if category.locked %}<i class="fa-solid fa-lock" title="{{ '@forum.board.locked'|trans }}"></i>{% endif %}
             </h2>
             {% if category.description %}<p>{{ category.description }}</p>{% endif %}
@@ -20,5 +20,5 @@
     </section>
 
     {% include '@Forum/client/_topic_list.html.twig' with {topics: topics, show_category: false} %}
-    {{ paginator(topics, 'forum_category', {slug: category.slug}) }}
+    {% if topics.totalPages > 1 %}{{ paginator(topics, 'forum_category', {slug: category.slug}) }}{% endif %}
 {% endblock %}

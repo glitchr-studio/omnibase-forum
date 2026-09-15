@@ -13,7 +13,7 @@
 
     {% if topics is not null %}
         {% include '@Forum/client/_topic_list.html.twig' with {topics: topics, show_category: true} %}
-        {{ paginator(topics, 'forum_search', {q: term}) }}
+        {% if topics.totalPages > 1 %}{{ paginator(topics, 'forum_search', {q: term}) }}{% endif %}
     {% elseif term %}
         <p class="forum-empty">{{ '@forum.search.too_short'|trans }}</p>
     {% endif %}

@@ -21,7 +21,7 @@ class PostRepository extends ServiceEntityRepository
         return $this->createQueryBuilder('p')
             ->leftJoin('p.author', 'a')->addSelect('a')
             ->andWhere('p.topic = :topic')->setParameter('topic', $topic)
-            ->orderBy('p.createdAt', 'ASC')->addOrderBy('p.id', 'ASC')
+            ->orderBy('p.createdAt', \SortDirection::Ascending)->addOrderBy('p.id', \SortDirection::Ascending)
             ->getQuery();
     }
 
@@ -30,7 +30,7 @@ class PostRepository extends ServiceEntityRepository
     {
         return $this->createQueryBuilder('p')
             ->andWhere('p.author = :author')->setParameter('author', $author)
-            ->orderBy('p.createdAt', 'DESC')
+            ->orderBy('p.createdAt', \SortDirection::Descending)
             ->setMaxResults(1)
             ->getQuery()->getOneOrNullResult();
     }

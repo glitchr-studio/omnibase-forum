@@ -31,9 +31,9 @@ class TopicRepository extends ThreadRepository
         return $this->createQueryBuilder('t')
             ->leftJoin('t.category', 'c')->addSelect('c')
             ->leftJoin('t.lastPoster', 'lp')->addSelect('lp')
-            ->orderBy('t.pinned', 'DESC')
-            ->addOrderBy('t.lastPostAt', 'DESC')
-            ->addOrderBy('t.createdAt', 'DESC');
+            ->orderBy('t.pinned', \SortDirection::Descending)
+            ->addOrderBy('t.lastPostAt', \SortDirection::Descending)
+            ->addOrderBy('t.createdAt', \SortDirection::Descending);
     }
 
     public function createCategoryQuery(Category $category): Query
@@ -56,19 +56,64 @@ class TopicRepository extends ThreadRepository
      * "unread" style feeds - never pinned first here, that only makes sense
      * inside a board.
      */
-    public function createLatestQuery(array $readableCategoryIds = null): Query
+    public function createLatestQuery(?array $readableCategoryIds = null): Query
     {
         $qb = $this->createQueryBuilder('t')
             ->leftJoin('t.category', 'c')->addSelect('c')
             ->leftJoin('t.lastPoster', 'lp')->addSelect('lp')
-            ->orderBy('t.lastPostAt', 'DESC')
-            ->addOrderBy('t.createdAt', 'DESC');
+            ->orderBy('t.lastPostAt', \SortDirection::Descending)
+            ->addOrderBy('t.createdAt', \SortDirection::Descending);
 
         if (null !== $readableCategoryIds) {
             $qb->andWhere('c.id IN (:ids)')->setParameter('ids', $readableCategoryIds ?: [0]);
         }
 
         return $qb->getQuery();
+    }
+
+    /**
+     * The pinned topics of the given boards, most recently active first: the
+     * post-its of the flat view. Readable boards only - the caller passes
+     * them, as for createLatestQuery().
+     *
+     * @param int[] $boardIds
+     * @return Topic[]
+     */
+    public function findPinned(array $boardIds, int $limit = 6): array
+    {
+        if (!$boardIds) {
+            return [];
+        }
+
+        return $this->createQueryBuilder('t')
+            ->leftJoin('t.category', 'c')->addSelect('c')
+            ->leftJoin('t.lastPoster', 'lp')->addSelect('lp')
+            ->andWhere('t.pinned = true')
+            ->andWhere('c.id IN (:ids)')->setParameter('ids', $boardIds)
+            ->orderBy('t.lastPostAt', \SortDirection::Descending)
+            ->setMaxResults($limit)
+            ->getQuery()->getResult();
+    }
+
+    /**
+     * The announcements of the flat view: the latest topics of the boards
+     * only the staff write in (locked boards, such as "Messages Officiels").
+     *
+     * @param int[] $boardIds the readable locked boards
+     * @return Topic[]
+     */
+    public function findAnnouncements(array $boardIds, int $limit = 2): array
+    {
+        if (!$boardIds) {
+            return [];
+        }
+
+        return $this->createQueryBuilder('t')
+            ->leftJoin('t.category', 'c')->addSelect('c')
+            ->andWhere('c.id IN (:ids)')->setParameter('ids', $boardIds)
+            ->orderBy('t.createdAt', \SortDirection::Descending)
+            ->setMaxResults($limit)
+            ->getQuery()->getResult();
     }
 
     /**
@@ -130,6 +175,32 @@ class TopicRepository extends ThreadRepository
     }
 
     /**
+     * The most recently active topic of each board, for the classic index's
+     * "last message" column (who wrote last, when, in which topic), as
+     * phpBB's forum list had it. One query: a topic whose last activity is
+     * its board's latest. Keyed by category id.
+     *
+     * @return array<int, Topic>
+     */
+    public function findLastPerCategory(): array
+    {
+        $topics = $this->createQueryBuilder('t')
+            ->leftJoin('t.lastPoster', 'lp')->addSelect('lp')
+            ->andWhere('t.lastPostAt = (SELECT MAX(t2.lastPostAt) FROM ' . Topic::class . ' t2 WHERE t2.category = t.category)')
+            ->getQuery()->getResult();
+
+        $last = [];
+        foreach ($topics as $topic) {
+            $id = $topic->getCategory()?->getId();
+            if (null !== $id && !isset($last[$id])) {
+                $last[$id] = $topic;
+            }
+        }
+
+        return $last;
+    }
+
+    /**
      * Tags in use on the forum, most used first - the tag cloud. Rows of
      * ['tag' => Tag, 'nb' => int]. Queried from the Tag side: DQL will not
      * select a joined entity without its root alias, and the count is what
@@ -143,7 +214,7 @@ class TopicRepository extends ThreadRepository
             ->innerJoin('tag.threads', 't')
             ->andWhere('t INSTANCE OF ' . Topic::class)
             ->groupBy('tag.id')
-            ->orderBy('nb', 'DESC')
+            ->orderBy('nb', \SortDirection::Descending)
             ->setMaxResults($limit)
             ->getQuery()->getResult();
 

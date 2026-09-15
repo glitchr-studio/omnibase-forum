@@ -69,7 +69,7 @@ class Category implements LinkableInterface, IconizeInterface
     protected ?Category $parent = null;
 
     #[ORM\OneToMany(targetEntity: self::class, mappedBy: 'parent', cascade: ['persist'])]
-    #[ORM\OrderBy(['position' => 'ASC', 'title' => 'ASC'])]
+    #[ORM\OrderBy(['position' => \SortDirection::Ascending, 'title' => \SortDirection::Ascending])]
     protected Collection $children;
 
     #[ORM\OneToMany(targetEntity: Topic::class, mappedBy: 'category')]

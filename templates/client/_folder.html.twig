@@ -1,0 +1,17 @@
+{#
+ # The badge before a board or a topic, saying what is special about it: an
+ # icon in a round badge. An application draws its own at
+ # templates/bundles/ForumBundle/client/_folder.html.twig, with the same
+ # variables:
+ #
+ #   state   default | lock | sticky | hot | announce | new | new_hot | new_lock
+ #   size    px, 40 for a board and 26 for a topic row (default 26)
+ #   title   for the tooltip, optional
+ #}
+{% set state = state|default('default') %}
+{% set icons = {
+    default: 'fa-regular fa-comments', lock: 'fa-solid fa-lock', sticky: 'fa-solid fa-thumbtack', hot: 'fa-solid fa-fire',
+    announce: 'fa-solid fa-bullhorn', new: 'fa-solid fa-circle-dot', new_hot: 'fa-solid fa-fire', new_lock: 'fa-solid fa-lock',
+} %}
+{% set size = size|default(26) %}
+<span class="forum-folder forum-folder-{{ state }}" style="--folder-size: {{ size }}px"{% if title is defined and title %} title="{{ title }}"{% endif %}><i class="{{ icons[state]|default(icons.default) }}" aria-hidden="true"></i></span>

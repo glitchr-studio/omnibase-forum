@@ -20,12 +20,23 @@
     {% block forum_header %}
     <header class="forum-header">
         {# The application supplies the painted banner (see _banner.html.twig); this is the text fallback. #}
-        {% include '@Forum/client/_banner.html.twig' ignore missing %}
+        {% block forum_banner %}{% include '@Forum/client/_banner.html.twig' ignore missing %}{% endblock %}
 
+        {# A site with a breadcrumb of its own empties this block, so the trail is not drawn twice. #}
+        {% block forum_breadcrumb %}
         <nav class="forum-crumbs" aria-label="{{ '@forum.crumbs'|trans }}">
             <a href="{{ path('forum_index') }}"><i class="fa-solid fa-comments"></i> {{ '@forum.index.title'|trans }}</a>
             {% block forum_crumbs %}{% endblock %}
         </nav>
+        {% endblock %}
+
+        {# The index's two views - see ForumController::VIEWS. Only where there is a view to switch. #}
+        {% if view is defined %}
+        <div class="forum-views" role="group" aria-label="{{ '@forum.view.label'|trans }}">
+            <a class="forum-view{{ view == 'classique' ? ' is-active' }}" href="{{ path('forum_index', {vue: 'classique'}) }}"{{ view == 'classique' ? ' aria-current="page"' }}><i class="fa-solid fa-table-list"></i> {{ '@forum.view.classique'|trans }}</a>
+            <a class="forum-view{{ view == 'fil' ? ' is-active' }}" href="{{ path('forum_index', {vue: 'fil'}) }}"{{ view == 'fil' ? ' aria-current="page"' }}><i class="fa-solid fa-stream"></i> {{ '@forum.view.fil'|trans }}</a>
+        </div>
+        {% endif %}
 
         <form class="forum-search" action="{{ path('forum_search') }}" method="get" role="search">
             <input type="search" name="q" value="{{ term|default('') }}" minlength="3" placeholder="{{ '@forum.search.placeholder'|trans }}" aria-label="{{ '@forum.search.placeholder'|trans }}">
@@ -37,6 +48,9 @@
     {% include 'flashbag.html.twig' ignore missing %}
 
     {% block forum_body %}{% endblock %}
+
+    {# Under the page, for a site that puts the forum's boxes there rather than in its aside. #}
+    {% block forum_footer %}{% endblock %}
 </div>
 {% endblock %}
 
