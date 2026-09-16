@@ -1,0 +1,182 @@
+{#
+    Drag-and-drop ordering for a plain POST form, shared by the forum's
+    /admin/bbs/ordre and any host page that orders its own things the same
+    way (Chapaland's official groups).
+
+    Markup contract, inside a <form data-order-form>:
+      <ol data-order-list="NAME">                         a list
+        <li data-order-item data-id="ID" draggable="true"> an item
+          <div class="order-row">... <button data-order-move="-1"> <button data-order-move="1"></div>
+          <ol data-order-list="CHILD">...</ol>             optional nested list
+    Items only move between lists of the same NAME, so boards travel from
+    one group to another but never become groups. The order is kept in
+    hidden inputs at all times - order[NAME][] = ID, or
+    order[CHILD][PARENT_ID][] = ID for a nested list - so it does not matter
+    whether the page's own submit handler or Transparent's runs first.
+
+    Native HTML5 drag-and-drop, not base-bundle-admin's StickySortable: that
+    one only reorders the direct children of one container (and the layout
+    loads it for superadmins in customize mode only), where a board has to
+    cross into another group's list. The up/down buttons cover touch and
+    keyboard, and hop into the neighbouring list at either end.
+#}
+<style>
+    .order-body { padding: 1rem 1.25rem; }
+    .order-body + .order-body { border-top: 1px solid var(--admin-border); }
+    .order-title { margin: 0 0 .25rem; font-size: 1.05rem; }
+    .order-help { margin: 0 0 .8rem; color: var(--admin-muted); }
+    .order-list { list-style: none; margin: 0; padding: 0; }
+    .order-item { margin: .3rem 0; }
+    .order-row { display: flex; align-items: center; gap: .6rem; padding: .45rem .6rem; border: 1px solid var(--admin-border); border-radius: var(--admin-radius); background: var(--admin-surface); }
+    .order-group > .order-row { font-weight: 600; }
+    .order-sublist { margin: .3rem 0 .7rem 1.8rem; min-height: 2.2rem; padding-left: .6rem; border-left: 2px dashed var(--admin-border); }
+    .order-sublist:empty::before { content: attr(data-empty); display: block; padding: .5rem; color: var(--admin-muted); font-style: italic; }
+    .order-handle { cursor: grab; color: var(--admin-muted); padding: 0 .15rem; }
+    .order-label { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .order-meta { color: var(--admin-muted); font-size: .85em; white-space: nowrap; }
+    .order-moves { display: flex; gap: .2rem; }
+    .order-moves button { border: 1px solid var(--admin-border); background: transparent; color: inherit; border-radius: 6px; width: 1.9rem; height: 1.9rem; cursor: pointer; }
+    .order-moves button:hover, .order-moves button:focus-visible { border-color: var(--admin-accent); color: var(--admin-accent); }
+    .order-item.is-dragging > .order-row { opacity: .45; border-style: dashed; }
+    .order-dirty { color: var(--admin-warning); font-weight: 600; }
+</style>
+<script>
+(function () {
+    'use strict';
+
+    function kind(list) { return list ? list.getAttribute('data-order-list') : null; }
+    function itemsOf(list) {
+        return Array.prototype.filter.call(list.children, function (el) { return el.hasAttribute('data-order-item'); });
+    }
+
+    function init(form) {
+        // Transparent re-runs a page's inline scripts on every swap.
+        if (form.dataset.orderReady) {
+            return;
+        }
+        form.dataset.orderReady = '1';
+        var dragged = null;
+
+        function serialize() {
+            form.querySelectorAll('input[data-order-input]').forEach(function (input) { input.remove(); });
+            form.querySelectorAll('[data-order-list]').forEach(function (list) {
+                var parent = list.parentElement.closest('[data-order-item]');
+                var name = 'order[' + kind(list) + ']' + (parent ? '[' + parent.dataset.id + ']' : '') + '[]';
+                itemsOf(list).forEach(function (item) {
+                    var input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = name;
+                    input.value = item.dataset.id;
+                    input.setAttribute('data-order-input', '');
+                    form.appendChild(input);
+                });
+            });
+        }
+
+        function changed() {
+            serialize();
+            document.querySelectorAll('[data-order-dirty]').forEach(function (el) { el.hidden = false; });
+        }
+
+        form.addEventListener('dragstart', function (e) {
+            var item = e.target.closest && e.target.closest('[data-order-item]');
+            if (!item) {
+                return;
+            }
+            dragged = item;
+            item.classList.add('is-dragging');
+            e.dataTransfer.effectAllowed = 'move';
+            // Firefox starts no drag without data.
+            try { e.dataTransfer.setData('text/plain', item.dataset.id); } catch (err) {}
+        });
+
+        form.addEventListener('dragend', function () {
+            if (dragged) {
+                dragged.classList.remove('is-dragging');
+                dragged = null;
+                changed();
+            }
+        });
+
+        form.addEventListener('dragover', function (e) {
+            if (!dragged) {
+                return;
+            }
+            var name = kind(dragged.parentElement);
+            var node = 1 === e.target.nodeType ? e.target : e.target.parentElement;
+
+            // The nearest item of the same kind as the dragged one: over a
+            // board while dragging a group, that is the board's group.
+            var over = node.closest('[data-order-item]');
+            while (over && kind(over.parentElement) !== name) {
+                over = over.parentElement.closest('[data-order-item]');
+            }
+            if (over && over !== dragged && !dragged.contains(over)) {
+                e.preventDefault();
+                var rect = over.getBoundingClientRect();
+                var before = e.clientY < rect.top + rect.height / 2;
+                over.parentElement.insertBefore(dragged, before ? over : over.nextSibling);
+
+                return;
+            }
+            if (over) {
+                e.preventDefault();
+
+                return;
+            }
+
+            // Over another group's header or its empty list: file the board there.
+            var host = node.closest('[data-order-item]');
+            var list = (host && host.querySelector('[data-order-list="' + name + '"]')) || node.closest('[data-order-list="' + name + '"]');
+            if (list && !dragged.contains(list)) {
+                e.preventDefault();
+                if (dragged.parentElement !== list) {
+                    list.appendChild(dragged);
+                }
+            }
+        });
+
+        form.addEventListener('drop', function (e) {
+            if (dragged) {
+                e.preventDefault();
+            }
+        });
+
+        form.addEventListener('click', function (e) {
+            var button = e.target.closest('[data-order-move]');
+            if (!button) {
+                return;
+            }
+            e.preventDefault();
+            var item = button.closest('[data-order-item]');
+            var list = item.parentElement;
+            var step = parseInt(button.getAttribute('data-order-move'), 10) < 0 ? -1 : 1;
+            var siblings = itemsOf(list);
+            var target = siblings[siblings.indexOf(item) + step];
+
+            if (target) {
+                list.insertBefore(item, step < 0 ? target : target.nextSibling);
+            } else {
+                // At an end of its list: into the neighbouring list of the same kind.
+                var lists = Array.prototype.slice.call(form.querySelectorAll('[data-order-list="' + kind(list) + '"]'));
+                var next = lists[lists.indexOf(list) + step];
+                if (!next) {
+                    return;
+                }
+                next.insertBefore(item, step < 0 ? null : next.firstChild);
+            }
+            button.focus();
+            changed();
+        });
+
+        serialize();
+    }
+
+    function boot() { document.querySelectorAll('form[data-order-form]').forEach(init); }
+    if ('loading' === document.readyState) {
+        document.addEventListener('DOMContentLoaded', boot);
+    } else {
+        boot();
+    }
+})();
+</script>

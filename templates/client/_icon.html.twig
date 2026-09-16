@@ -1,0 +1,19 @@
+{#
+ # A small forum icon, by name: the last message's arrow, the quote and edit
+ # buttons, the group toggle... FontAwesome by default. An application draws
+ # its own at templates/bundles/ForumBundle/client/_icon.html.twig, with the
+ # same variables:
+ #
+ #   name    latest_reply | newest_reply | minipost | minipost_new | quote | edit
+ #           | delete | reply | branch | cat_open | cat_close | lock | sticky
+ #   title   for the tooltip, optional; without it the icon is decorative
+ #   size    px, optional (default: the text's size)
+ #}
+{% set icons = {
+    latest_reply: 'fa-solid fa-envelope-open-text', newest_reply: 'fa-solid fa-arrow-right-to-bracket', minipost: 'fa-regular fa-envelope',
+    minipost_new: 'fa-solid fa-envelope', quote: 'fa-solid fa-quote-left', edit: 'fa-solid fa-pen', delete: 'fa-solid fa-xmark',
+    reply: 'fa-solid fa-reply', branch: 'fa-solid fa-code-branch', cat_open: 'fa-solid fa-caret-right', cat_close: 'fa-solid fa-caret-down',
+    lock: 'fa-solid fa-lock', sticky: 'fa-solid fa-thumbtack',
+} %}
+{% set title = title|default('') %}
+<i class="forum-icon forum-icon-{{ name }} {{ icons[name]|default('fa-solid fa-circle') }}"{% if size is defined and size %} style="font-size: {{ size }}px"{% endif %}{% if title %} title="{{ title }}" role="img" aria-label="{{ title }}"{% else %} aria-hidden="true"{% endif %}></i>

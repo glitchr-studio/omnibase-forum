@@ -1,4 +1,13 @@
-{# The right-hand column: a call to write, then the tag cloud. #}
+{# The right-hand column: what to know first, a call to write, then the tag cloud. #}
+<div class="forum-box forum-box-help">
+    <div class="forum-box-title"><i class="fa-solid fa-circle-question"></i> {{ '@forum.aside.help'|trans }}</div>
+    <div class="forum-box-body">
+        {# The syntax is shown as typed, in code chips: rendering it would hide what to type. #}
+        <p>{{ '@forum.aside.help_markdown'|trans|raw }}</p>
+        <p>{{ '@forum.aside.help_mention'|trans|raw }}</p>
+    </div>
+</div>
+
 <div class="forum-box forum-box-new">
     <div class="forum-box-title"><i class="fa-solid fa-pen-nib"></i> {{ '@forum.aside.write'|trans }}</div>
     <div class="forum-box-body">
@@ -25,14 +34,3 @@
     </div>
 </div>
 {% endif %}
-
-<div class="forum-box forum-box-help">
-    <div class="forum-box-title"><i class="fa-solid fa-circle-question"></i> {{ '@forum.aside.help'|trans }}</div>
-    <div class="forum-box-body">
-        <ul>
-            <li>{{ '@forum.aside.help_markdown'|trans }}</li>
-            <li>{{ '@forum.aside.help_mention'|trans }}</li>
-            <li>{{ '@forum.aside.help_follow'|trans }}</li>
-        </ul>
-    </div>
-</div>

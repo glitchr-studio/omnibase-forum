@@ -4,21 +4,25 @@
 {% block forum_crumbs %}<span>›</span> <span>{{ group.title }}</span>{% endblock %}
 
 {% block forum_body %}
-    <section class="forum-group">
-        <h2 class="forum-group-title" style="{{ group.color ? '--cat:' ~ group.color : '' }}"><i class="{{ group.icon|default('fa-solid fa-folder-open') }}"></i> {{ group.title }}</h2>
+    {# One group on its own, its boards as on the index: the folder badge says the state. #}
+    <section class="forum-group" style="{{ group.color ? '--cat:' ~ group.color : '' }}">
+        <h2 class="forum-group-title"><i class="{{ group.icon|default('fa-solid fa-folder-open') }}" aria-hidden="true"></i> {{ group.title }}</h2>
         {% if group.description %}<p class="forum-group-desc">{{ group.description }}</p>{% endif %}
         <ul class="forum-boards">
             {% for board in group.children|filter(b => is_granted('FORUM_READ', b)) %}
                 {% set c = counts[board.id]|default({topics: 0, replies: 0}) %}
                 <li class="forum-board{{ board.locked ? ' is-locked' }}">
-                    <a class="forum-board-icon" href="{{ path('forum_category', {slug: board.slug}) }}" style="{{ board.color ? '--cat:' ~ board.color : '' }}"><i class="{{ board.icon|default('fa-solid fa-comments') }}"></i></a>
+                    <a class="forum-board-icon" href="{{ path('forum_category', {slug: board.slug}) }}" aria-hidden="true" tabindex="-1">
+                        {% include '@Forum/client/_folder.html.twig' with {state: board.locked ? 'lock' : (board.requiredRole ? 'announce' : 'default'), size: 40, title: board.locked ? '@forum.board.locked'|trans : (board.requiredRole ? '@forum.board.private'|trans : '')} %}
+                    </a>
                     <div class="forum-board-text">
                         <a class="forum-board-title" href="{{ path('forum_category', {slug: board.slug}) }}">{{ board.title }}</a>
                         {% if board.description %}<p class="forum-board-desc">{{ board.description }}</p>{% endif %}
                     </div>
+                    {% set messages = c.topics + c.replies %}
                     <div class="forum-board-stats">
                         <span><b>{{ c.topics }}</b> {{ '@forum.board.topics'|trans({'%count%': c.topics}) }}</span>
-                        <span><b>{{ c.replies }}</b> {{ '@forum.board.replies'|trans({'%count%': c.replies}) }}</span>
+                        <span><b>{{ messages }}</b> {{ '@forum.board.messages'|trans({'%count%': messages}) }}</span>
                     </div>
                 </li>
             {% endfor %}

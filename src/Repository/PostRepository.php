@@ -25,6 +25,23 @@ class PostRepository extends ServiceEntityRepository
             ->getQuery();
     }
 
+    /**
+     * The whole topic, light: one scalar row per post, in reading order, for
+     * the timeline and the message tree (TopicController::outline()). No
+     * content, no entities - a topic of a thousand posts stays cheap.
+     *
+     * @return list<array{id: int, at: \DateTimeInterface, replyTo: ?int, deletedAt: ?\DateTimeInterface, authorId: ?int, author: ?string}>
+     */
+    public function findOutline(Topic $topic): array
+    {
+        return $this->createQueryBuilder('p')
+            ->select('p.id, p.createdAt AS at, IDENTITY(p.replyTo) AS replyTo, p.deletedAt, IDENTITY(p.author) AS authorId, a.username AS author')
+            ->leftJoin('p.author', 'a')
+            ->andWhere('p.topic = :topic')->setParameter('topic', $topic)
+            ->orderBy('p.createdAt', \SortDirection::Ascending)->addOrderBy('p.id', \SortDirection::Ascending)
+            ->getQuery()->getArrayResult();
+    }
+
     /** The member's most recent post, for the flood check. */
     public function findLastByAuthor(User $author): ?Post
     {

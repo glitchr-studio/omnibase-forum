@@ -1,10 +1,12 @@
 {#
  # The forum's chrome, inside the site's own layout: a title band, the
- # breadcrumb, the search box, then the page. Every forum page extends this.
+ # breadcrumb, the search box, then the page in two columns - the page's body,
+ # and the forum's boxes beside it. Every forum page extends this.
  #
  # The application decides what "layout1.html.twig" is; the forum only asks
- # for its `content` and `aside` blocks, the way base-bundle's own client
- # templates do.
+ # for its `content` block, the way base-bundle's own client templates do.
+ # The boxes are the forum's own right-hand column (`forum_side`), so they line
+ # up with the first block of the page rather than with the site's aside.
  #}
 {% extends 'layout1.html.twig' %}
 
@@ -47,17 +49,21 @@
 
     {% include 'flashbag.html.twig' ignore missing %}
 
-    {% block forum_body %}{% endblock %}
+    {#
+     # The page, then the boxes beside it, both starting on the same line. A
+     # page adds to the column with {{ parent() }} in `forum_side` (the topic's
+     # timeline does); nothing above it clips, so a child may be sticky.
+     #}
+    <div class="forum-page">
+        <div class="forum-main">{% block forum_body %}{% endblock %}</div>
+        <aside class="forum-side">
+            {% block forum_side %}
+                {% include '@Forum/client/_aside.html.twig' with {tags: tags|default([])} %}
+            {% endblock %}
+        </aside>
+    </div>
 
-    {# Under the page, for a site that puts the forum's boxes there rather than in its aside. #}
+    {# Under the page, for a site that wants something there; empty by default. #}
     {% block forum_footer %}{% endblock %}
-</div>
-{% endblock %}
-
-{% block aside %}
-<div class="forum-aside">
-    {% block forum_aside %}
-        {% include '@Forum/client/_aside.html.twig' with {tags: tags|default([])} %}
-    {% endblock %}
 </div>
 {% endblock %}

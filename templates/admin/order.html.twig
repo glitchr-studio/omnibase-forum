@@ -1,0 +1,93 @@
+{#
+    /admin/bbs/ordre - see Base\Forum\Controller\Admin\OrderController.
+    The parent is base-bundle-admin's layout, like its own non-CRUD pages;
+    a host with another admin layout passes forum_admin_layout.
+#}
+{% extends forum_admin_layout|default('@Admin/layout.html.twig') %}
+
+{% block page_title %}{{ 'admin.order.title'|trans({}, 'forum') }}{% endblock %}
+
+{% macro moves() %}
+    <span class="order-moves">
+        <button type="button" data-order-move="-1" title="{{ 'admin.order.up'|trans({}, 'forum') }}" aria-label="{{ 'admin.order.up'|trans({}, 'forum') }}"><i class="fa-solid fa-arrow-up"></i></button>
+        <button type="button" data-order-move="1" title="{{ 'admin.order.down'|trans({}, 'forum') }}" aria-label="{{ 'admin.order.down'|trans({}, 'forum') }}"><i class="fa-solid fa-arrow-down"></i></button>
+    </span>
+{% endmacro %}
+
+{% macro category_row(category) %}
+    <div class="order-row">
+        <span class="order-handle" title="{{ 'admin.order.drag'|trans({}, 'forum') }}"><i class="fa-solid fa-grip-vertical"></i></span>
+        {% if category.icon %}<i class="{{ category.icon }}"{% if category.color %} style="color: {{ category.color }}"{% endif %}></i>{% endif %}
+        <span class="order-label">{{ category.title }}</span>
+        {% if category.locked %}<span class="order-meta" title="{{ 'admin.order.locked'|trans({}, 'forum') }}"><i class="fa-solid fa-lock"></i></span>{% endif %}
+        {% if category.requiredRole %}<span class="order-meta"><i class="fa-solid fa-user-shield"></i> {{ category.requiredRole }}</span>{% endif %}
+        {{ _self.moves() }}
+    </div>
+{% endmacro %}
+
+{% block content_header %}
+<div class="admin-header">
+    <span class="admin-header-icon"><i class="fa-solid fa-arrow-down-short-wide"></i></span>
+    <div class="admin-header-titles">
+        <h1>{{ 'admin.order.title'|trans({}, 'forum') }}</h1>
+        <div class="admin-header-subtitle">{{ 'admin.order.description'|trans({}, 'forum') }}</div>
+    </div>
+    <div class="global-actions">
+        <span class="order-dirty" data-order-dirty hidden>{{ 'admin.order.unsaved'|trans({}, 'forum') }}</span>
+        <button class="btn btn-primary" type="submit" form="forum-order-form">
+            <i class="fa-solid fa-floppy-disk"></i> {{ 'admin.order.save'|trans({}, 'forum') }}
+        </button>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+{% include '@Forum/admin/_sortable.html.twig' %}
+{# Explicit action: inside Transparent.nest's srcdoc iframe a form without one posts nowhere. #}
+<form method="post" id="forum-order-form" action="{{ path('forum_admin_order') }}" data-order-form>
+    <input type="hidden" name="_token" value="{{ csrf_token('forum_admin_order') }}">
+    <div class="card">
+        <section class="order-body">
+            <h2 class="order-title"><i class="fa-solid fa-folder-open"></i> {{ 'admin.order.boards'|trans({}, 'forum') }}</h2>
+            <p class="order-help">{{ 'admin.order.boards_help'|trans({}, 'forum') }}</p>
+            {% if groups is empty %}
+                <div class="empty-state">{{ 'admin.order.boards_empty'|trans({}, 'forum') }}</div>
+            {% else %}
+            <ol class="order-list" data-order-list="groups">
+                {% for group in groups %}
+                <li class="order-item order-group" data-order-item data-id="{{ group.id }}" draggable="true">
+                    {{ _self.category_row(group) }}
+                    <ol class="order-list order-sublist" data-order-list="boards" data-empty="{{ 'admin.order.board_empty'|trans({}, 'forum') }}">
+                        {%- for board in group.children -%}
+                        <li class="order-item" data-order-item data-id="{{ board.id }}" draggable="true">{{ _self.category_row(board) }}</li>
+                        {%- endfor -%}
+                    </ol>
+                </li>
+                {% endfor %}
+            </ol>
+            {% endif %}
+        </section>
+        <section class="order-body">
+            <h2 class="order-title"><i class="fa-solid fa-tags"></i> {{ 'admin.order.tags'|trans({}, 'forum') }}</h2>
+            <p class="order-help">{{ 'admin.order.tags_help'|trans({}, 'forum') }}</p>
+            {% if tags is empty %}
+                <div class="empty-state">{{ 'admin.order.tags_empty'|trans({}, 'forum') }}</div>
+            {% else %}
+            <ol class="order-list" data-order-list="tags">
+                {% for tag in tags %}
+                <li class="order-item" data-order-item data-id="{{ tag.id }}" draggable="true">
+                    <div class="order-row">
+                        <span class="order-handle" title="{{ 'admin.order.drag'|trans({}, 'forum') }}"><i class="fa-solid fa-grip-vertical"></i></span>
+                        <i class="fa-solid fa-tag"{% if tag.color %} style="color: {{ tag.color }}"{% endif %}></i>
+                        <span class="order-label">{{ tag }}</span>
+                        <span class="order-meta">{{ 'admin.order.uses'|trans({count: uses[tag.id] ?? 0}, 'forum') }}</span>
+                        {{ _self.moves() }}
+                    </div>
+                </li>
+                {% endfor %}
+            </ol>
+            {% endif %}
+        </section>
+    </div>
+</form>
+{% endblock %}

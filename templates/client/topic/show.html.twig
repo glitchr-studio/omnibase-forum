@@ -1,5 +1,13 @@
 {% extends '@Forum/client/layout.html.twig' %}
 
+{#
+ # The right-hand column holds the timeline and the message tree. A layout
+ # with a `forum_side` block places it; an older layout without one gets the
+ # column drawn here, beside the topic (see .forum-thread-grid).
+ #}
+{% set layout_has_side = block('forum_side', '@Forum/client/layout.html.twig') is defined %}
+{% set has_icons = source('@Forum/client/_icon.html.twig', true) is not empty %}
+
 {% block forum_title %}{{ topic.title }}{% endblock %}
 {% block forum_crumbs %}
     {% set cat = topic.category %}
@@ -7,7 +15,28 @@
     {% if cat %}<span>›</span> <a href="{{ path('forum_category', {slug: cat.slug}) }}">{{ cat.title }}</a>{% endif %}
 {% endblock %}
 
+{% block stylesheets %}
+    {{ parent() }}
+    <link rel="stylesheet" href="{{ asset('bundles/forum/css/forum-thread.css') }}">
+{% endblock %}
+
 {% block forum_body %}
+    {% if layout_has_side %}
+        {{ block('forum_topic') }}
+    {% else %}
+        <div class="forum-thread-grid">
+            <div class="forum-main">{{ block('forum_topic') }}</div>
+            <aside class="forum-side">{{ block('forum_side') }}</aside>
+        </div>
+    {% endif %}
+{% endblock %}
+
+{% block forum_side %}
+    {{ block('forum_timeline') }}
+    {% if layout_has_side %}{{ parent() }}{% endif %}
+{% endblock %}
+
+{% block forum_topic %}
     {% set can_moderate = is_granted('FORUM_MODERATE') %}
     {% set can_edit_topic = is_granted('FORUM_EDIT', topic) %}
 
@@ -54,23 +83,36 @@
             </div>
         </header>
 
-        {% if posts.totalPages > 1 %}{{ paginator(posts, 'forum_topic', {slug: topic.slug}) }}{% endif %}
+        {# 2004's "« Sujet Précédent / Sujet Suivant »", on the same board. #}
+        {% if topic_previous or topic_next %}
+        <nav class="forum-topic-nav">
+            {% if topic_previous %}<a rel="prev" href="{{ path('forum_topic', {slug: topic_previous.slug}) }}">« {{ '@forum.timeline.previous_topic'|trans }}</a>{% else %}<span></span>{% endif %}
+            {% if topic_next %}<a rel="next" href="{{ path('forum_topic', {slug: topic_next.slug}) }}">{{ '@forum.timeline.next_topic'|trans }} »</a>{% endif %}
+        </nav>
+        {% endif %}
+
+        {{ block('forum_pager') }}
 
         <ol class="forum-posts" start="{{ (posts.page - 1) * posts.pageSize + 1 }}">
             {% for post in posts %}
-                {% include '@Forum/client/_post.html.twig' with {post: post, topic: topic} %}
+                {% include '@Forum/client/_post.html.twig' with {post: post, topic: topic, node: outline_index[post.id] ?? null, current_page: posts.page} %}
             {% endfor %}
         </ol>
 
-        {% if posts.totalPages > 1 %}{{ paginator(posts, 'forum_topic', {slug: topic.slug}) }}{% endif %}
+        {{ block('forum_pager') }}
 
         {% if reply %}
         <section class="forum-reply" id="reply">
             <h3><i class="fa-solid fa-reply"></i> {{ '@forum.reply.title'|trans }}</h3>
             {{ form_start(reply, {attr: {class: 'forum-form'}}) }}
-                {% if reply.vars.value.replyTo %}
-                    <input type="hidden" name="reply_to" value="{{ reply.vars.value.replyTo }}">
-                    <p class="forum-reply-to">{{ '@forum.reply.in_reply_to'|trans({'%number%': reply.vars.value.replyTo}) }}</p>
+                {% set answered = reply.vars.value.replyTo ? outline_index[reply.vars.value.replyTo] ?? null : null %}
+                {% if answered %}
+                    <input type="hidden" name="reply_to" value="{{ answered.id }}">
+                    <p class="forum-reply-to">
+                        <i class="fa-solid fa-code-branch" aria-hidden="true"></i>
+                        <a href="{{ answered.page != posts.page ? path('forum_topic', {slug: topic.slug, page: answered.page > 1 ? answered.page : null}) }}#post-{{ answered.id }}">{{ '@forum.reply.in_reply_to'|trans({number: answered.number}) }}</a>
+                        · <a href="{{ path('forum_topic', {slug: topic.slug, page: posts.page > 1 ? posts.page : null}) }}#reply">{{ '@forum.post.branch_cancel'|trans }}</a>
+                    </p>
                 {% endif %}
                 {{ form_row(reply.content) }}
                 <div class="forum-form-actions">
@@ -86,7 +128,86 @@
     </article>
 {% endblock %}
 
+{#
+ # The topic's pages: first, last, and two either side of the current one.
+ # Drawn here rather than with base-bundle's paginator(), whose "next ones"
+ # links call trans(null) and break every topic longer than one page.
+ #}
+{% block forum_pager %}
+{% if posts.totalPages > 1 %}
+<nav aria-label="{{ '@forum.timeline.pages'|trans }}">
+    <ul class="pagination">
+        {% for n in 1..posts.totalPages %}
+            {% if n == 1 or n == posts.totalPages or (n - posts.page)|abs <= 2 %}
+                {% if n == posts.page %}
+                    <li class="active"><span aria-current="page">{{ n }}</span></li>
+                {% else %}
+                    <li><a href="{{ path('forum_topic', {slug: topic.slug, page: n > 1 ? n : null}) }}">{{ n }}</a></li>
+                {% endif %}
+            {% elseif (n - posts.page)|abs == 3 %}
+                <li class="disabled"><span>…</span></li>
+            {% endif %}
+        {% endfor %}
+    </ul>
+</nav>
+{% endif %}
+{% endblock %}
+
+{#
+ # The timeline (Discourse's scroller) and the message tree, both drawn by
+ # forum-thread.js from the outline below - hidden until the script runs,
+ # since neither means anything without it.
+ #}
+{% block forum_timeline %}
+{% set total = outline|length %}
+<nav class="forum-timeline" aria-label="{{ '@forum.timeline.label'|trans }}" data-forum-timeline hidden>
+    <button type="button" class="forum-timeline-pill" data-timeline-pill aria-expanded="false" aria-controls="forum-timeline-panel" title="{{ '@forum.timeline.where'|trans }}">
+        <i class="fa-solid fa-signs-post" aria-hidden="true"></i> <span data-timeline-pill-label>1 / {{ total }}</span>
+    </button>
+    <div class="forum-timeline-panel" id="forum-timeline-panel">
+        <div class="forum-timeline-views" role="group" aria-label="{{ '@forum.timeline.views'|trans }}">
+            <button type="button" data-timeline-view="timeline" aria-pressed="true"><i class="fa-solid fa-grip-lines-vertical" aria-hidden="true"></i> {{ '@forum.timeline.view_timeline'|trans }}</button>
+            <button type="button" data-timeline-view="tree" aria-pressed="false"><i class="fa-solid fa-tree" aria-hidden="true"></i> {{ '@forum.tree.title'|trans }}</button>
+        </div>
+
+        <div class="forum-timeline-scroller" data-timeline-scroller>
+            <button type="button" class="forum-timeline-jump" data-timeline-top><i class="fa-solid fa-angles-up" aria-hidden="true"></i> {{ '@forum.timeline.top'|trans }}</button>
+            <span class="forum-timeline-date" data-timeline-start></span>
+            <div class="forum-timeline-track" data-timeline-track>
+                <span class="forum-timeline-fill" data-timeline-fill></span>
+                <span class="forum-timeline-ticks" data-timeline-ticks aria-hidden="true"></span>
+                <div class="forum-timeline-handle" data-timeline-handle role="slider" tabindex="0" aria-orientation="vertical"
+                     aria-label="{{ '@forum.timeline.slider'|trans }}" aria-valuemin="1" aria-valuemax="{{ total }}" aria-valuenow="1">
+                    <span class="forum-timeline-knob"></span>
+                    <span class="forum-timeline-where"><b data-timeline-label>1 / {{ total }}</b><small data-timeline-date></small></span>
+                </div>
+            </div>
+            <span class="forum-timeline-date" data-timeline-end></span>
+            <button type="button" class="forum-timeline-jump" data-timeline-bottom><i class="fa-solid fa-angles-down" aria-hidden="true"></i> {{ '@forum.timeline.bottom'|trans }}</button>
+        </div>
+
+        <div class="forum-tree" data-forum-tree hidden>
+            <div class="forum-tree-host" data-forum-tree-host role="group" aria-label="{{ '@forum.tree.label'|trans }}"></div>
+            <p class="forum-tree-hint">{{ '@forum.tree.hint'|trans }}</p>
+        </div>
+    </div>
+
+    <script type="application/json" id="forum-outline">{{ {
+        posts: outline,
+        page: posts.page,
+        url: path('forum_topic', {slug: topic.slug}),
+        labels: {
+            position: '@forum.timeline.position'|trans({current: '{current}', total: '{total}'}),
+            node: '@forum.tree.node'|trans({number: '{number}', author: '{author}', date: '{date}'}),
+            nobody: '@forum.tree.nobody'|trans,
+            deleted: '@forum.tree.deleted'|trans,
+        },
+    }|json_encode(constant('JSON_HEX_TAG') b-or constant('JSON_HEX_AMP') b-or constant('JSON_UNESCAPED_UNICODE'))|raw }}</script>
+</nav>
+{% endblock %}
+
 {% block javascripts %}
     {{ parent() }}
     <script src="{{ asset('bundles/forum/js/forum.js') }}" defer></script>
+    <script src="{{ asset('bundles/forum/js/forum-thread.js') }}" defer></script>
 {% endblock %}

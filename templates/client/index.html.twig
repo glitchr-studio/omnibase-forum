@@ -1,26 +1,36 @@
+{#
+ # The classic index, phpBB's: the boards grouped under their categories, each
+ # group a block with a coloured title band that folds away (forum-index.js).
+ # A board's row is laid out the way the 2004 BBS laid it: its folder badge,
+ # which alone says whether it is locked or reserved; its title and
+ # description; its counters; and its last message - the topic, when, and who,
+ # with the little envelope leading to it. The latest discussions are the flat
+ # view's (index_fil.html.twig), not this one's.
+ #}
 {% extends '@Forum/client/layout.html.twig' %}
 
 {% block forum_body %}
-    {# The boards, grouped the way phpBB grouped forums under categories. #}
     {% for group in groups %}
         {% set boards = group.children|filter(b => is_granted('FORUM_READ', b)) %}
         {% if boards|length %}
-        <section class="forum-group">
-            <h2 class="forum-group-title" style="{{ group.color ? '--cat:' ~ group.color : '' }}">
-                <i class="{{ group.icon|default('fa-solid fa-folder-open') }}"></i> {{ group.title }}
+        <section class="forum-group" style="{{ group.color ? '--cat:' ~ group.color : '' }}">
+            <h2 class="forum-group-title">
+                <button type="button" class="forum-group-toggle" data-group="{{ group.slug ?? group.id }}" aria-expanded="true" aria-controls="forum-group-{{ group.id }}" title="{{ '@forum.index.toggle'|trans }}">
+                    <span class="forum-toggle-close">{% include '@Forum/client/_icon.html.twig' with {name: 'cat_close'} %}</span>
+                    <span class="forum-toggle-open">{% include '@Forum/client/_icon.html.twig' with {name: 'cat_open'} %}</span>
+                </button>
+                <i class="{{ group.icon|default('fa-solid fa-folder-open') }}" aria-hidden="true"></i> {{ group.title }}
             </h2>
-            <ul class="forum-boards">
+            <ul class="forum-boards" id="forum-group-{{ group.id }}">
                 {% for board in boards %}
                     {% set c = counts[board.id]|default({topics: 0, replies: 0}) %}
+                    {% set state = board.locked ? 'lock' : (board.requiredRole ? 'announce' : 'default') %}
                     <li class="forum-board{{ board.locked ? ' is-locked' }}">
-                        {# The folder badge (_folder.html.twig): a lock on a locked board, the announce one on a board reserved to a role, the plain one otherwise. #}
-                        <a class="forum-board-icon" href="{{ path('forum_category', {slug: board.slug}) }}">
-                            {% include '@Forum/client/_folder.html.twig' with {state: board.locked ? 'lock' : (board.requiredRole ? 'announce' : 'default'), size: 40} %}
+                        <a class="forum-board-icon" href="{{ path('forum_category', {slug: board.slug}) }}" aria-hidden="true" tabindex="-1">
+                            {% include '@Forum/client/_folder.html.twig' with {state: state, size: 40, title: board.locked ? '@forum.board.locked'|trans : (board.requiredRole ? '@forum.board.private'|trans : '')} %}
                         </a>
                         <div class="forum-board-text">
                             <a class="forum-board-title" href="{{ path('forum_category', {slug: board.slug}) }}">{{ board.title }}</a>
-                            {% if board.locked %}<i class="fa-solid fa-lock" title="{{ '@forum.board.locked'|trans }}"></i>{% endif %}
-                            {% if board.requiredRole %}<i class="fa-solid fa-user-shield" title="{{ '@forum.board.private'|trans }}"></i>{% endif %}
                             {% if board.description %}<p class="forum-board-desc">{{ board.description }}</p>{% endif %}
                         </div>
                         {# The counters as phpBB set them: topics, then messages - a topic's first post counts as one. #}
@@ -29,16 +39,16 @@
                             <span><b>{{ c.topics }}</b> {{ '@forum.board.topics'|trans({'%count%': c.topics}) }}</span>
                             <span><b>{{ messages }}</b> {{ '@forum.board.messages'|trans({'%count%': messages}) }}</span>
                         </div>
-                        {# The last message: its topic, when, and who wrote it. #}
                         {% set lt = last[board.id]|default(null) %}
                         <div class="forum-board-last">
                             {% if lt %}
                                 <a class="forum-board-last-topic" href="{{ path('forum_topic', {slug: lt.slug}) }}" title="{{ lt.title }}">{{ lt.title }}</a>
                                 {% set at = lt.activityAt %}
                                 <time datetime="{{ at ? at|date('c') : '' }}" title="{{ at ? at|datetime('d MMMM yyyy, HH:mm') : '' }}">{{ at ? at|datetime('d MMM yyyy, HH:mm') : '' }}</time>
-                                {% if lt.lastPoster or lt.author %}
-                                    <span class="forum-board-last-by">{{ '@forum.list.by'|trans }} {% include '@Forum/client/_member.html.twig' with {user: lt.lastPoster ?? lt.author} %}</span>
-                                {% endif %}
+                                <span class="forum-board-last-by">
+                                    {% if lt.lastPoster or lt.author %}{% include '@Forum/client/_member.html.twig' with {user: lt.lastPoster ?? lt.author} %}{% endif %}
+                                    <a class="forum-board-last-go" href="{{ path('forum_topic', {slug: lt.slug}) }}">{% include '@Forum/client/_icon.html.twig' with {name: 'latest_reply', title: '@forum.board.last_message'|trans} %}</a>
+                                </span>
                             {% else %}
                                 <span class="forum-board-last-none">{{ '@forum.board.no_message'|trans }}</span>
                             {% endif %}
@@ -51,10 +61,9 @@
     {% else %}
         <p class="forum-empty">{{ '@forum.index.no_board'|trans }}</p>
     {% endfor %}
+{% endblock %}
 
-    <section class="forum-latest">
-        <h2 class="forum-section-title"><i class="fa-solid fa-bolt"></i> {{ '@forum.index.latest'|trans }}</h2>
-        {% include '@Forum/client/_topic_list.html.twig' with {topics: latest, show_category: true} %}
-        {% if latest.totalPages > 1 %}{{ paginator(latest, 'forum_index') }}{% endif %}
-    </section>
+{% block javascripts %}
+    {{ parent() }}
+    <script src="{{ asset('bundles/forum/js/forum-index.js') }}" defer></script>
 {% endblock %}

@@ -1,7 +1,36 @@
-{# One post of a topic. Variables: post, topic. #}
+{#
+ # One post of a topic. Variables: post, topic; from topic/show.html.twig also
+ # `node` (the post's entry in TopicController::outline()), `outline_index`,
+ # `current_page` and `has_icons` - without them the post still renders, only
+ # without its branch links.
+ #
+ # Laid out like the 2004 BBS: the minipost icon before the header, the tools
+ # (quote, reply to this post, edit, delete) top-right, a thin rule under it.
+ #}
+{% import _self as ui %}
+
+{% macro icon(name, fa, has_icons) %}
+    {%- if has_icons -%}
+        {% include '@Forum/client/_icon.html.twig' with {name: name} %}
+    {%- else -%}
+        <i class="fa-solid fa-{{ fa }}" aria-hidden="true"></i>
+    {%- endif -%}
+{% endmacro %}
+
 {% set can_edit = is_granted('FORUM_EDIT', post) %}
 {% set can_moderate = is_granted('FORUM_MODERATE') %}
-<li class="forum-post{{ post.isFirst ? ' is-first' }}{{ post.deleted ? ' is-deleted' }}" id="post-{{ post.id }}">
+{% set can_reply = is_granted('FORUM_REPLY', topic) and not post.deleted %}
+{% set has_icons = has_icons ?? (source('@Forum/client/_icon.html.twig', true) is not empty) %}
+{% set node = node ?? null %}
+{% set current_page = current_page ?? 1 %}
+{% set outline_index = outline_index ?? {} %}
+
+{# A link to another post of the topic, on whichever page it is. #}
+{% macro href(entry, topic, current_page) -%}
+    {{ entry.page != current_page ? path('forum_topic', {slug: topic.slug, page: entry.page > 1 ? entry.page : null}) }}#post-{{ entry.id }}
+{%- endmacro %}
+
+<li class="forum-post{{ post.isFirst ? ' is-first' }}{{ post.deleted ? ' is-deleted' }}{{ node and node.branch ? ' is-branch' }}" id="post-{{ post.id }}">
     <aside class="forum-post-author">
         {% include '@Forum/client/_avatar.html.twig' with {user: post.author, size: 'md'} %}
         <div class="forum-post-author-name">{% include '@Forum/client/_member.html.twig' with {user: post.author} %}</div>
@@ -12,15 +41,44 @@
 
     <div class="forum-post-body">
         <header class="forum-post-head">
-            <a class="forum-post-number" href="#post-{{ post.id }}" title="{{ '@forum.post.permalink'|trans }}">#{{ post.number }}</a>
+            <a class="forum-post-minipost" href="#post-{{ post.id }}" title="{{ '@forum.post.permalink'|trans }}" aria-label="{{ '@forum.post.permalink'|trans }}">{{ ui.icon('minipost', 'message', has_icons) }}</a>
+            <a class="forum-post-number" href="#post-{{ post.id }}">#{{ node ? node.number : post.number }}</a>
             <time datetime="{{ post.createdAt|date('c') }}">{{ post.createdAt|datetime('d MMMM yyyy, HH:mm') }}</time>
-            {% if post.replyTo %}
-                <a class="forum-post-replyto" href="#post-{{ post.replyTo.id }}"><i class="fa-solid fa-reply"></i> {{ '@forum.post.reply_to'|trans({'%number%': post.replyTo.number}) }}</a>
+
+            {# "en réponse à": only where the post leaves the trunk - the trunk simply follows on. #}
+            {% if node %}
+                {% set answered = node.branch and node.parent ? outline_index[node.parent] ?? null : null %}
+                {% if answered %}
+                    <a class="forum-post-replyto" href="{{ ui.href(answered, topic, current_page) }}">↳ {{ '@forum.post.reply_to'|trans({number: answered.number}) }}</a>
+                {% endif %}
+            {% elseif post.replyTo %}
+                <a class="forum-post-replyto" href="#post-{{ post.replyTo.id }}">↳ {{ '@forum.post.reply_to'|trans({number: post.replyTo.number}) }}</a>
             {% endif %}
+
             {% if post.editedAt %}
                 <span class="forum-post-edited" title="{{ post.editedAt|datetime('d MMMM yyyy, HH:mm') }}">{{ '@forum.post.edited'|trans({'%count%': post.editCount}) }}</span>
             {% endif %}
+
+            <div class="forum-post-tools" role="group" aria-label="{{ '@forum.post.tools'|trans }}">
+                {% if can_reply %}
+                    <a class="forum-post-tool" href="{{ path('forum_topic', {slug: topic.slug, quote: post.id}) }}#reply" title="{{ '@forum.post.quote'|trans }}" aria-label="{{ '@forum.post.quote'|trans }}">{{ ui.icon('quote', 'quote-left', has_icons) }}</a>
+                    <a class="forum-post-tool" href="{{ path('forum_topic', {slug: topic.slug, reply: post.id}) }}#reply" title="{{ '@forum.post.branch'|trans }}" aria-label="{{ '@forum.post.branch'|trans }}">{{ ui.icon('branch', 'code-branch', has_icons) }}</a>
+                {% endif %}
+                {% if can_edit and not post.deleted %}
+                    <a class="forum-post-tool" href="{{ path('forum_post_edit', {id: post.id}) }}" title="{{ '@forum.post.edit'|trans }}" aria-label="{{ '@forum.post.edit'|trans }}">{{ ui.icon('edit', 'pen', has_icons) }}</a>
+                {% endif %}
+                {% if can_edit and (not post.deleted or can_moderate) %}
+                    {% set delete_label = (post.deleted ? '@forum.post.restore' : '@forum.post.delete')|trans %}
+                    <form method="post" action="{{ path('forum_post_delete', {id: post.id}) }}" class="forum-inline-form" data-forum-moderate>
+                        <input type="hidden" name="_token" value="{{ csrf_token('forum_post_' ~ post.id) }}">
+                        <button class="forum-post-tool is-danger" title="{{ delete_label }}" aria-label="{{ delete_label }}" data-confirm="{{ (post.deleted ? '@forum.post.restore_confirm' : '@forum.post.delete_confirm')|trans }}">
+                            {%- if post.deleted %}<i class="fa-solid fa-rotate-left" aria-hidden="true"></i>{% else %}{{ ui.icon('delete', 'trash', has_icons) }}{% endif -%}
+                        </button>
+                    </form>
+                {% endif %}
+            </div>
         </header>
+        <hr class="forum-post-sep">
 
         {% if post.deleted %}
             <div class="forum-post-content forum-post-deleted">
@@ -31,21 +89,11 @@
             <div class="forum-post-content">{{ post.content|forum_markdown }}</div>
         {% endif %}
 
-        <footer class="forum-post-actions">
-            {% if is_granted('FORUM_REPLY', topic) and not post.deleted %}
-                <a class="forum-btn forum-btn-ghost forum-btn-sm" href="{{ path('forum_topic', {slug: topic.slug, quote: post.id}) }}#reply"><i class="fa-solid fa-quote-left"></i> {{ '@forum.post.quote'|trans }}</a>
-            {% endif %}
-            {% if can_edit and not post.deleted %}
-                <a class="forum-btn forum-btn-ghost forum-btn-sm" href="{{ path('forum_post_edit', {id: post.id}) }}"><i class="fa-solid fa-pen"></i> {{ '@forum.post.edit'|trans }}</a>
-            {% endif %}
-            {% if can_edit and (not post.deleted or can_moderate) %}
-                <form method="post" action="{{ path('forum_post_delete', {id: post.id}) }}" class="forum-inline-form" data-forum-moderate>
-                    <input type="hidden" name="_token" value="{{ csrf_token('forum_post_' ~ post.id) }}">
-                    <button class="forum-btn forum-btn-ghost forum-btn-sm" data-confirm="{{ (post.deleted ? '@forum.post.restore_confirm' : '@forum.post.delete_confirm')|trans }}">
-                        <i class="fa-solid fa-{{ post.deleted ? 'rotate-left' : 'trash' }}"></i> {{ (post.deleted ? '@forum.post.restore' : '@forum.post.delete')|trans }}
-                    </button>
-                </form>
-            {% endif %}
+        {% set first_reply = node and node.firstReply ? outline_index[node.firstReply] ?? null : null %}
+        {% if first_reply %}
+        <footer class="forum-post-foot">
+            <a class="forum-post-branches" href="{{ ui.href(first_reply, topic, current_page) }}">{{ ui.icon('branch', 'code-branch', has_icons) }} {{ '@forum.post.replies'|trans({count: node.replies}) }}</a>
         </footer>
+        {% endif %}
     </div>
 </li>

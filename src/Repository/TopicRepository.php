@@ -201,10 +201,14 @@ class TopicRepository extends ThreadRepository
     }
 
     /**
-     * Tags in use on the forum, most used first - the tag cloud. Rows of
+     * Tags in use on the forum - the tag cloud. Rows of
      * ['tag' => Tag, 'nb' => int]. Queried from the Tag side: DQL will not
      * select a joined entity without its root alias, and the count is what
      * the join is for.
+     *
+     * Highest Tag::$priority first, as the admin set it on /admin/bbs/ordre;
+     * usage only decides between tags of equal priority - which, until an
+     * admin orders them, is all of them (priority 0).
      */
     public function findTagUsage(int $limit = 30): array
     {
@@ -214,7 +218,8 @@ class TopicRepository extends ThreadRepository
             ->innerJoin('tag.threads', 't')
             ->andWhere('t INSTANCE OF ' . Topic::class)
             ->groupBy('tag.id')
-            ->orderBy('nb', \SortDirection::Descending)
+            ->orderBy('tag.priority', \SortDirection::Descending)
+            ->addOrderBy('nb', \SortDirection::Descending)
             ->setMaxResults($limit)
             ->getQuery()->getResult();
 

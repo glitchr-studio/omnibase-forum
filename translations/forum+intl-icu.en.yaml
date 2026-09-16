@@ -5,6 +5,7 @@ index:
   subtitle: "the Archipelago's forums"
   latest: "Latest discussions"
   no_board: "No board has been opened yet."
+  toggle: "Fold or unfold"
 
 board:
   topics: "{count, plural, one {topic} other {topics}}"
@@ -13,6 +14,7 @@ board:
   no_message: "No message yet"
   locked: "This board is locked: read-only from now on."
   private: "Restricted board"
+  last_message: "Go to the last message"
 
 list:
   topic: "Topic"
@@ -55,10 +57,35 @@ post:
   restore: "Restore"
   delete_confirm: "Delete this post?"
   restore_confirm: "Restore this post?"
+  branch: "Reply to this post"
+  branch_cancel: "reply to the topic instead"
+  replies: "{count, plural, one {# reply} other {# replies}}"
+  tools: "Post actions"
   content:
     blank: "An empty post cannot be sent."
     short: "A bit short, isn't it?"
     long: "Your post exceeds {{ limit }} characters."
+
+timeline:
+  label: "Where you are in the topic"
+  views: "Topic display"
+  view_timeline: "Timeline"
+  position: "{current} / {total}"
+  slider: "Position in the topic"
+  top: "Back to top"
+  bottom: "Last post"
+  where: "Where am I?"
+  previous_topic: "Previous topic"
+  next_topic: "Next topic"
+  pages: "Topic pages"
+
+tree:
+  title: "Message tree"
+  label: "The topic's message tree"
+  hint: "The trunk is the conversation. Every “Reply to this post” grows a branch. Pull a leaf to bend its branch."
+  node: "#{number} · {author} · {date}"
+  nobody: "deleted member"
+  deleted: "deleted"
 
 reply:
   title: "Reply"
@@ -86,8 +113,8 @@ aside:
   login_to_write: "<a href=\"{login}\">Sign in</a> or <a href=\"{register}\">create an account</a> to write on the BBS."
   tags: "Tags"
   help: "Good to know"
-  help_markdown: "Posts are written in Markdown: **bold**, _italic_, > quote, `code`."
-  help_mention: "Write @username to mention a member, >>12 to point at post #12."
+  help_markdown: "<code>**bold**</code> <code>_italic_</code> <code>&gt; quote</code>: it's Markdown."
+  help_mention: "<code>@username</code> calls a member, <code>&gt;&gt;12</code> points at post 12."
   help_follow: "Follow a topic to be told about replies."
 
 member:
@@ -126,3 +153,23 @@ fil:
   announcements: "Announcements"
   pinned: "Pinned"
   latest: "All discussions"
+
+admin:
+  order:
+    title: "BBS display order"
+    description: "Put the boards and tags in the order members will see them, then save."
+    boards: "Groups and boards"
+    boards_help: "Drag a group to move it with its boards, or a board to file it elsewhere, another group included. The arrows do the same."
+    boards_empty: "No board has been opened yet."
+    board_empty: "No board: drop one here."
+    tags: "Tags"
+    tags_help: "The BBS tag cloud follows this order, top to bottom; only tags already in use appear in it."
+    tags_empty: "No tag."
+    uses: "{count, plural, =0 {no topic} one {# topic} other {# topics}}"
+    up: "Move up"
+    down: "Move down"
+    drag: "Drag to move"
+    locked: "Locked board"
+    save: "Save the order"
+    saved: "The display order is saved."
+    unsaved: "Order changed: remember to save."

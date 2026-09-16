@@ -65,8 +65,8 @@
                 </div>
                 <div class="forum-feed-main">
                     <a class="forum-topic-title" href="{{ path('forum_topic', {slug: topic.slug}) }}">
-                        {% if topic.pinned %}<i class="fa-solid fa-thumbtack" title="{{ '@forum.topic.pinned'|trans }}"></i>{% endif %}
-                        {% if topic.locked %}<i class="fa-solid fa-lock" title="{{ '@forum.topic.locked'|trans }}"></i>{% endif %}
+                        {# No folder badge in the feed: the state is one small icon before the title. #}
+                        {% if topic.pinned %}{% include '@Forum/client/_icon.html.twig' with {name: 'sticky', title: '@forum.topic.pinned'|trans} %}{% elseif topic.locked %}{% include '@Forum/client/_icon.html.twig' with {name: 'lock', title: '@forum.topic.locked'|trans} %}{% endif %}
                         {{ topic.title }}
                     </a>
                     <div class="forum-topic-meta">

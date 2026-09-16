@@ -109,6 +109,8 @@ class TopicController extends AbstractController
             $this->topics->incrementViews($topic);
         }
 
+        [$outline, $outlineIndex] = $this->outline($topic);
+
         $reply = null;
         if ($this->isGranted(ForumVoter::REPLY, $topic)) {
             $draft = new PostModel();
@@ -117,6 +119,11 @@ class TopicController extends AbstractController
                 if ($quoted && $quoted->getTopic() === $topic && !$quoted->isDeleted()) {
                     $draft->content = $this->markdown->quote($quoted->getContent(), (string) $quoted->getAuthor());
                     $draft->replyTo = $quoted->getId();
+                }
+            } elseif ($answered = $request->query->getInt('reply')) {
+                // "Répondre à ce message": the same link as a quote, without the quote.
+                if (isset($outlineIndex[$answered]) && !$outlineIndex[$answered]['deleted']) {
+                    $draft->replyTo = $answered;
                 }
             }
             $reply = $this->createForm(PostType::class, $draft, [
@@ -127,6 +134,10 @@ class TopicController extends AbstractController
         return $this->render('@Forum/client/topic/show.html.twig', [
             'topic' => $topic,
             'posts' => $posts,
+            'outline' => $outline,
+            'outline_index' => $outlineIndex,
+            'topic_previous' => $this->neighbour($topic, false),
+            'topic_next' => $this->neighbour($topic, true),
             'reply' => $reply,
             'is_following' => $this->getUser() && $topic->getFollowers()->contains($this->getUser()),
             'is_liked' => $this->getUser() && $topic->isLiked($this->getUser()),
@@ -324,6 +335,90 @@ class TopicController extends AbstractController
         $this->entityManager->flush();
 
         return $this->redirectToPost($post);
+    }
+
+    /**
+     * The whole topic as a tree, from one light query, for the timeline and
+     * the "Arbre à messages" (public/js/forum-thread.js).
+     *
+     * A post's parent is the message it answers (replyTo). A post answering
+     * nothing continues the trunk - and so does one answering the trunk's
+     * last message, the way "Citer" on the latest post is still the same
+     * conversation. Answering an older message forks a branch from it;
+     * answering the tip of a branch extends that branch.
+     *
+     * Each entry: id, number, page, parent (post id), branch (0 for the
+     * trunk, else the id of the post that forked it), level (how many forks
+     * from the trunk), depth (position along its branch), author, authorId,
+     * at, deleted, replies (how many posts answer it) and firstReply.
+     *
+     * @return array{0: list<array<string, mixed>>, 1: array<int, array<string, mixed>>} the outline, and the same keyed by post id
+     */
+    private function outline(Topic $topic): array
+    {
+        $outline = [];
+        $index = [];   // post id => position in $outline
+        $tips = [];    // branch id => the id of its last post
+        $trunk = null; // the id of the trunk's last post
+
+        foreach ($this->posts->findOutline($topic) as $i => $row) {
+            $id = (int) $row['id'];
+            // A reply to a post not seen yet (or not in this topic) answers nothing.
+            $replyTo = null !== $row['replyTo'] && isset($index[(int) $row['replyTo']]) ? (int) $row['replyTo'] : null;
+
+            if (null === $replyTo || $replyTo === $trunk) {
+                $parent = $trunk;
+                $branch = 0;
+                $level = 0;
+                $depth = null === $trunk ? 0 : $outline[$index[$trunk]]['depth'] + 1;
+                $trunk = $id;
+            } else {
+                $from = $outline[$index[$replyTo]];
+                $extends = 0 !== $from['branch'] && $tips[$from['branch']] === $replyTo;
+                $parent = $replyTo;
+                $branch = $extends ? $from['branch'] : $id;
+                $level = $extends ? $from['level'] : $from['level'] + 1;
+                $depth = $extends ? $from['depth'] + 1 : 1;
+                $tips[$branch] = $id;
+            }
+
+            if (null !== $replyTo) {
+                $answered = &$outline[$index[$replyTo]];
+                ++$answered['replies'];
+                $answered['firstReply'] ??= $id;
+                unset($answered);
+            }
+
+            $index[$id] = \count($outline);
+            $outline[] = [
+                'id' => $id,
+                'number' => $i + 1,
+                'page' => intdiv($i, max(1, $this->postsPerPage)) + 1,
+                'parent' => $parent,
+                'branch' => $branch,
+                'level' => $level,
+                'depth' => $depth,
+                'author' => $row['author'],
+                'authorId' => null !== $row['authorId'] ? (int) $row['authorId'] : null,
+                'at' => $row['at']?->format('c'),
+                'deleted' => null !== $row['deletedAt'],
+                'replies' => 0,
+                'firstReply' => null,
+            ];
+        }
+
+        return [$outline, array_combine(array_keys($index), $outline)];
+    }
+
+    /** The topic before or after this one on its board - 2004's "« Sujet précédent / Sujet suivant »". */
+    private function neighbour(Topic $topic, bool $next): ?Topic
+    {
+        return $this->topics->createQueryBuilder('t')
+            ->andWhere('t.category = :category')->setParameter('category', $topic->getCategory())
+            ->andWhere($next ? 't.id > :id' : 't.id < :id')->setParameter('id', $topic->getId())
+            ->orderBy('t.id', $next ? \SortDirection::Ascending : \SortDirection::Descending)
+            ->setMaxResults(1)
+            ->getQuery()->getOneOrNullResult();
     }
 
     /** Seconds still to wait before posting again, 0 when clear. */

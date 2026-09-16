@@ -233,9 +233,55 @@
 .forum-back { display: inline-flex; align-items: center; gap: .4rem; padding: .35rem .8rem; border-radius: 999px; background: #fff; border: 1px solid var(--forum-line); font-size: 12px; font-weight: bold; }
 .forum a.forum-back:hover { text-decoration: none; background: var(--forum-blue-pale); }
 .forum-header:not(:has(.forum-crumbs)) .forum-search { margin-left: auto; }
-.forum-footer { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: 1rem; align-items: start; margin-top: 1.75rem; }
-.forum-footer .forum-box { margin: 0; }
-.forum-footer .forum-box-body p { margin: 0; }
+
+/* ── the page and its side column (layout.html.twig) ──────────────────────
+   The side column starts on the same line as the page's first block. Nothing
+   between .forum and the column clips (no overflow), so a box in it may be
+   position: sticky - the topic's timeline is. One column under 900px, the
+   boxes after the page. */
+.forum-page { display: grid; grid-template-columns: minmax(0, 1fr) 15rem; gap: 1.25rem; align-items: start; }
+.forum-main { min-width: 0; }
+.forum-side { display: flex; flex-direction: column; gap: 1rem; min-width: 0; align-self: stretch; }
+.forum-side .forum-box { margin: 0; }
+.forum-box-body p { margin: 0; }
+.forum-box-body p + p { margin-top: .4rem; }
+.forum-box-help .forum-box-body { font-size: 12px; color: var(--forum-muted); }
+.forum-box-help code { display: inline-block; padding: 0 .3rem; border-radius: 4px; background: var(--forum-blue-pale); color: var(--forum-blue-dark); font: 11px/1.5 Menlo, Consolas, monospace; white-space: nowrap; }
+@media (max-width: 900px) {
+    .forum-page { grid-template-columns: minmax(0, 1fr); }
+    .forum-side { align-self: auto; }
+}
+
+/* ── small icons (_icon.html.twig) ────────────────────────────────────── */
+.forum-icon { display: inline-block; vertical-align: middle; }
+img.forum-icon { image-rendering: auto; }
+i.forum-icon { color: var(--forum-blue); }
+
+/* The group toggle: the 2004 triangle, down when open, right when folded. */
+.forum-group-title { display: flex; align-items: center; gap: .45rem; }
+.forum-group-toggle { display: inline-grid; place-items: center; width: 1.3rem; height: 1.3rem; margin: 0 .1rem 0 -.3rem; padding: 0; border: 0; border-radius: 4px; background: rgba(255, 255, 255, .9); cursor: pointer; }
+.forum-group-toggle:hover { background: #fff; }
+.forum-group-toggle:focus-visible { outline: 2px solid #fff; outline-offset: 1px; }
+.forum-group-toggle[aria-expanded="true"] .forum-toggle-open,
+.forum-group-toggle[aria-expanded="false"] .forum-toggle-close { display: none; }
+.forum-group-toggle > span { display: contents; }
+.forum-group.is-folded .forum-group-title { border-radius: 0; }
+
+/* The last message's author, then the envelope leading to it. */
+.forum-board-last-by, .forum-topic-last { display: flex; align-items: center; gap: .35rem; }
+.forum-board-last-go { display: inline-flex; line-height: 0; }
+.forum-board-last-go:hover .forum-icon { filter: brightness(.92) saturate(1.6); }
+.forum-board-head-note { font-size: 12px; font-style: italic; }
+
+/* Beside the side column the page is narrower: the counters and the last
+   message give up width so a board's description and a topic's title keep
+   theirs. */
+.forum-page .forum-group .forum-board { grid-template-columns: 40px minmax(0, 1fr) auto 9.5rem; gap: .75rem; padding: .7rem .9rem; }
+.forum-page .forum-board-icon { width: 40px; height: 40px; }
+.forum-page .forum-board-last { padding-left: .75rem; }
+.forum-page .forum-topics .col-num { width: 3.2rem; padding-left: .3rem; padding-right: .3rem; }
+.forum-page .forum-topics .col-activity { width: 6.5rem; }
+.forum-page .forum-topics .col-cat { width: 8rem; }
 
 /* ── the default folder badge (_folder.html.twig) ─────────────────────── */
 span.forum-folder { display: inline-grid; place-items: center; width: var(--folder-size, 26px); height: var(--folder-size, 26px); border-radius: 50%; background: var(--forum-blue-pale); color: var(--forum-blue); font-size: calc(var(--folder-size, 26px) * .45); }

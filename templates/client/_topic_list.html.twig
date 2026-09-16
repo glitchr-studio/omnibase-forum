@@ -1,8 +1,11 @@
 {#
- # The topic list, Discourse-shaped: avatar, title + tags + board, then the
- # counters. Variables: topics (a Pagination), show_category (bool).
+ # The topic list: the folder badge, which alone says the topic's state
+ # (pinned, locked, hot or plain); the title with its tags and author; then the
+ # counters and the last message, when and who, with the envelope leading to
+ # it. Variables: topics (a Pagination), show_category (bool).
  #}
-{% set show_category = show_category|default(true) %}
+{# Not |default(true): Twig's default takes false for empty, and the board's own page passes false. #}
+{% set show_category = show_category is defined ? show_category : true %}
 {# Pagination::count() is never 0 - the total says whether there is anything. #}
 {% if (topics.totalCount ?? topics|length) == 0 %}
     <p class="forum-empty">{{ '@forum.list.empty'|trans }}</p>
@@ -23,15 +26,9 @@
         <tr class="forum-topic-row{{ topic.pinned ? ' is-pinned' }}{{ topic.locked ? ' is-locked' }}{{ hot ? ' is-hot' }}">
             <td class="col-topic">
                 <div class="forum-topic-main">
-                    {# The folder badge says the topic's state: pinned, locked, hot, or plain. #}
                     {% include '@Forum/client/_folder.html.twig' with {state: topic.pinned ? 'sticky' : (topic.locked ? 'lock' : (hot ? 'hot' : 'default')), title: topic.pinned ? '@forum.topic.pinned'|trans : (topic.locked ? '@forum.topic.locked'|trans : '')} %}
-                    {% include '@Forum/client/_avatar.html.twig' with {user: topic.author, size: 'sm'} %}
                     <div class="forum-topic-text">
-                        <a class="forum-topic-title" href="{{ path('forum_topic', {slug: topic.slug}) }}">
-                            {% if topic.pinned %}<i class="fa-solid fa-thumbtack" title="{{ '@forum.topic.pinned'|trans }}"></i>{% endif %}
-                            {% if topic.locked %}<i class="fa-solid fa-lock" title="{{ '@forum.topic.locked'|trans }}"></i>{% endif %}
-                            {{ topic.title }}
-                        </a>
+                        <a class="forum-topic-title" href="{{ path('forum_topic', {slug: topic.slug}) }}">{{ topic.title }}</a>
                         <div class="forum-topic-meta">
                             {% for tag in topic.tags %}
                                 <a class="forum-tag forum-tag-sm" href="{{ path('forum_tag', {slug: tag.slug}) }}" style="{{ tag.color ? '--tag:' ~ tag.color : '' }}">{{ tag }}</a>
@@ -45,7 +42,7 @@
             <td class="col-cat">
                 {% if topic.category %}
                 <a class="forum-cat-badge" href="{{ path('forum_category', {slug: topic.category.slug}) }}" style="{{ topic.category.color ? '--cat:' ~ topic.category.color : '' }}">
-                    <i class="{{ topic.category.icon|default('fa-solid fa-comments') }}"></i> {{ topic.category.title }}
+                    <span class="forum-cat-dot"></span>{{ topic.category.title }}
                 </a>
                 {% endif %}
             </td>
@@ -54,8 +51,11 @@
             <td class="col-num">{{ topic.views }}</td>
             <td class="col-activity">
                 {% set at = topic.activityAt %}
-                <time datetime="{{ at ? at|date('c') : '' }}" title="{{ at ? at|datetime('d MMMM yyyy, HH:mm') : '' }}">{{ at ? at|datetime('d MMM') : '' }}</time>
-                {% if topic.lastPoster %}<div class="forum-topic-last">{% include '@Forum/client/_member.html.twig' with {user: topic.lastPoster} %}</div>{% endif %}
+                <time datetime="{{ at ? at|date('c') : '' }}" title="{{ at ? at|datetime('d MMMM yyyy, HH:mm') : '' }}">{{ at ? at|datetime('d MMM yyyy') : '' }}</time>
+                <div class="forum-topic-last">
+                    {% if topic.lastPoster or topic.author %}{% include '@Forum/client/_member.html.twig' with {user: topic.lastPoster ?? topic.author} %}{% endif %}
+                    <a class="forum-board-last-go" href="{{ path('forum_topic', {slug: topic.slug}) }}">{% include '@Forum/client/_icon.html.twig' with {name: 'latest_reply', title: '@forum.board.last_message'|trans} %}</a>
+                </div>
             </td>
         </tr>
     {% endfor %}

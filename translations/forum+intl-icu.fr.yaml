@@ -5,6 +5,7 @@ index:
   subtitle: "les forums de l'Archipel"
   latest: "Dernières discussions"
   no_board: "Aucun forum n'a encore été ouvert."
+  toggle: "Replier ou déplier"
 
 board:
   topics: "{count, plural, =0 {sujet} one {sujet} other {sujets}}"
@@ -13,6 +14,7 @@ board:
   no_message: "Aucun message"
   locked: "Ce forum est verrouillé : on y lit, on n'y écrit plus."
   private: "Forum réservé"
+  last_message: "Aller au dernier message"
 
 list:
   topic: "Sujet"
@@ -55,10 +57,35 @@ post:
   restore: "Restaurer"
   delete_confirm: "Supprimer ce message ?"
   restore_confirm: "Restaurer ce message ?"
+  branch: "Répondre à ce message"
+  branch_cancel: "répondre au sujet plutôt"
+  replies: "{count, plural, one {# réponse} other {# réponses}}"
+  tools: "Actions sur le message"
   content:
     blank: "Un message vide, ça ne se poste pas."
     short: "Un peu court, non ?"
     long: "Ton message dépasse {{ limit }} caractères."
+
+timeline:
+  label: "Où en es-tu dans le sujet"
+  views: "Affichage du sujet"
+  view_timeline: "Fil"
+  position: "{current} / {total}"
+  slider: "Position dans le sujet"
+  top: "Retour en haut"
+  bottom: "Dernier message"
+  where: "Où suis-je ?"
+  previous_topic: "Sujet précédent"
+  next_topic: "Sujet suivant"
+  pages: "Pages du sujet"
+
+tree:
+  title: "Arbre à messages"
+  label: "L'arbre à messages du sujet"
+  hint: "Le tronc, c'est la conversation. Chaque « Répondre à ce message » fait pousser une branche. Tire une feuille pour plier sa branche."
+  node: "#{number} · {author} · {date}"
+  nobody: "membre disparu"
+  deleted: "supprimé"
 
 reply:
   title: "Répondre"
@@ -86,8 +113,8 @@ aside:
   login_to_write: "<a href=\"{login}\">Connecte-toi</a> ou <a href=\"{register}\">crée un compte</a> pour écrire sur le BBS."
   tags: "Étiquettes"
   help: "Bon à savoir"
-  help_markdown: "Les messages s'écrivent en Markdown : **gras**, _italique_, > citation, `code`."
-  help_mention: "Écris @pseudo pour mentionner un membre, >>12 pour renvoyer au message n°12."
+  help_markdown: "<code>**gras**</code> <code>_italique_</code> <code>&gt; citation</code> : c'est du Markdown."
+  help_mention: "<code>@pseudo</code> appelle un membre, <code>&gt;&gt;12</code> renvoie au message 12."
   help_follow: "Suis un sujet pour être prévenu des réponses."
 
 member:
@@ -126,3 +153,23 @@ fil:
   announcements: "Annonces"
   pinned: "Post-it"
   latest: "Toutes les discussions"
+
+admin:
+  order:
+    title: "Ordre d'affichage du BBS"
+    description: "Range les forums et les étiquettes dans l'ordre où les membres les verront, puis enregistre."
+    boards: "Catégories et forums"
+    boards_help: "Fais glisser une catégorie pour la déplacer avec ses forums, ou un forum pour le ranger ailleurs, y compris dans une autre catégorie. Les flèches font la même chose."
+    boards_empty: "Aucun forum n'a encore été ouvert."
+    board_empty: "Aucun forum : dépose-en un ici."
+    tags: "Étiquettes"
+    tags_help: "Le nuage d'étiquettes du BBS suit cet ordre, de haut en bas ; seules les étiquettes déjà utilisées y apparaissent."
+    tags_empty: "Aucune étiquette."
+    uses: "{count, plural, =0 {aucun sujet} one {# sujet} other {# sujets}}"
+    up: "Monter"
+    down: "Descendre"
+    drag: "Glisser pour déplacer"
+    locked: "Forum verrouillé"
+    save: "Enregistrer l'ordre"
+    saved: "L'ordre d'affichage est enregistré."
+    unsaved: "Ordre modifié : pense à enregistrer."
