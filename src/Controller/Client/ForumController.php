@@ -2,6 +2,7 @@
 
 namespace Base\Forum\Controller\Client;
 
+use Base\Attributes\Attribute\Sitemap;
 use Base\Entity\Thread\Tag;
 use Base\Forum\Entity\Category;
 use Base\Forum\Repository\CategoryRepository;
@@ -48,6 +49,7 @@ class ForumController extends AbstractController
     public const VIEWS = ['classique', 'fil'];
     public const VIEW_COOKIE = 'FORUM/VIEW';
 
+    #[Sitemap(priority: 0.7, changefreq: 'daily')]
     #[Route('/bbs', name: 'forum_index')]
     public function Index(Request $request): Response
     {
@@ -111,6 +113,7 @@ class ForumController extends AbstractController
         return $response;
     }
 
+    #[Sitemap(priority: 0.6, changefreq: 'daily')]
     #[Route('/bbs/c/{slug}', name: 'forum_category')]
     public function Category(Request $request, string $slug): Response
     {

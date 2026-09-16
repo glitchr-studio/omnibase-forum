@@ -2,6 +2,7 @@
 
 namespace Base\Forum\Controller\Client;
 
+use Base\Attributes\Attribute\Sitemap;
 use Base\Forum\Entity\Category;
 use Base\Forum\Entity\Post;
 use Base\Forum\Entity\Topic;
@@ -91,6 +92,7 @@ class TopicController extends AbstractController
         ]);
     }
 
+    #[Sitemap(priority: 0.5, changefreq: 'weekly')]
     #[Route('/bbs/{slug}', name: 'forum_topic')]
     public function Show(Request $request, string $slug): Response
     {
