@@ -175,6 +175,31 @@ class TopicRepository extends ThreadRepository
     }
 
     /**
+     * The boards holding at least one popular topic, for the folder badge of
+     * a board row. One grouped query for the whole index rather than a count
+     * per row, and the very threshold a topic row uses, so "populaire" means
+     * the same thing at both levels of the hierarchy.
+     *
+     * @return array<int, true> keyed by category id, to be read with
+     *                          hot[board.id]|default(false) in Twig
+     */
+    public function findHotCategoryIds(int $threshold): array
+    {
+        $rows = $this->createQueryBuilder('t')
+            ->select('IDENTITY(t.category) AS category')
+            ->andWhere('t.replies >= :threshold')->setParameter('threshold', $threshold)
+            ->groupBy('t.category')
+            ->getQuery()->getArrayResult();
+
+        $hot = [];
+        foreach ($rows as $row) {
+            $hot[(int) $row['category']] = true;
+        }
+
+        return $hot;
+    }
+
+    /**
      * The most recently active topic of each board, for the classic index's
      * "last message" column (who wrote last, when, in which topic), as
      * phpBB's forum list had it. One query: a topic whose last activity is

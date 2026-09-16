@@ -1,0 +1,67 @@
+{#
+ # The pages of a list or of a topic: the 2004 BBS's row, « ‹ 1 2 3 4 › », the
+ # current page marked. One partial for every pager on the BBS - the board,
+ # tag, search and feed lists, and the topic - so they all read and move the
+ # same way; it replaces base-bundle's paginator(), whose "next ones" links
+ # called trans(null) and broke every list longer than one page.
+ #
+ # Parameters:
+ #   pagination  a Base\Service\Model\Pagination (the topic passes its posts)
+ #   route       the route the pages link to
+ #   params      that route's other parameters, without the page
+ #   window      how many pages to show either side of the current one
+ #
+ # No <ul>: a host layout that styles `nav ul` (Chapaland's sets
+ # flex-direction: column) stood the numbers on end, one per line. Plain
+ # anchors in a <nav> carry the same meaning and nothing inherits.
+ #
+ # Page 1 keeps its bare URL - a null extra parameter is dropped by the URL
+ # generator - so /bbs/un-sujet and /bbs/un-sujet?page=1 stay one address.
+ #}
+{% import _self as pager %}
+
+{% macro url(route, params, n) %}{{ path(route, params|merge({page: n > 1 ? n : null})) }}{% endmacro %}
+
+{% set total = pagination.totalPages %}
+{% if total > 1 %}
+    {% set current = min(max(pagination.page, 1), total) %}
+    {% set window = window|default(2) %}
+    {% set params = params|default({}) %}
+
+    <nav class="forum-pager" aria-label="{{ '@forum.pager.label'|trans }}">
+        {# Read aloud before the arrows: where the reader is, in words. #}
+        <span class="forum-pager-status">{{ '@forum.pager.status'|trans({current: current, total: total}) }}</span>
+
+        {# First and previous. Kept as dimmed marks on page 1 so the row does
+           not change shape from one page to the next. #}
+        {% if current > 1 %}
+            <a class="forum-pager-step" rel="first" href="{{ pager.url(route, params, 1) }}" title="{{ '@forum.pager.first'|trans }}"><span aria-hidden="true">«</span><span class="forum-pager-status">{{ '@forum.pager.first'|trans }}</span></a>
+            <a class="forum-pager-step" rel="prev" href="{{ pager.url(route, params, current - 1) }}" title="{{ '@forum.pager.previous'|trans }}"><span aria-hidden="true">‹</span><span class="forum-pager-status">{{ '@forum.pager.previous'|trans }}</span></a>
+        {% else %}
+            <span class="forum-pager-step is-disabled" aria-hidden="true">«</span>
+            <span class="forum-pager-step is-disabled" aria-hidden="true">‹</span>
+        {% endif %}
+
+        {# The numbers: the first, the last, and `window` either side of the
+           current one; a gap mark stands for what is left out. #}
+        {% for n in 1..total %}
+            {% if n == 1 or n == total or (n - current)|abs <= window %}
+                {% if n == current %}
+                    <span class="forum-pager-num is-current" aria-current="page">{{ n }}</span>
+                {% else %}
+                    <a class="forum-pager-num" href="{{ pager.url(route, params, n) }}" title="{{ '@forum.pager.page'|trans({number: n}) }}">{{ n }}</a>
+                {% endif %}
+            {% elseif (n - current)|abs == window + 1 %}
+                <span class="forum-pager-gap" aria-hidden="true">…</span>
+            {% endif %}
+        {% endfor %}
+
+        {% if current < total %}
+            <a class="forum-pager-step" rel="next" href="{{ pager.url(route, params, current + 1) }}" title="{{ '@forum.pager.next'|trans }}"><span aria-hidden="true">›</span><span class="forum-pager-status">{{ '@forum.pager.next'|trans }}</span></a>
+            <a class="forum-pager-step" rel="last" href="{{ pager.url(route, params, total) }}" title="{{ '@forum.pager.last'|trans }}"><span aria-hidden="true">»</span><span class="forum-pager-status">{{ '@forum.pager.last'|trans }}</span></a>
+        {% else %}
+            <span class="forum-pager-step is-disabled" aria-hidden="true">›</span>
+            <span class="forum-pager-step is-disabled" aria-hidden="true">»</span>
+        {% endif %}
+    </nav>
+{% endif %}

@@ -20,5 +20,5 @@
     </section>
 
     {% include '@Forum/client/_topic_list.html.twig' with {topics: topics, show_category: false} %}
-    {% if topics.totalPages > 1 %}{{ paginator(topics, 'forum_category', {slug: category.slug}) }}{% endif %}
+    {% include '@Forum/client/_pager.html.twig' with {pagination: topics, route: 'forum_category', params: {slug: category.slug}} %}
 {% endblock %}

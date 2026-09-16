@@ -43,18 +43,41 @@
 
     var tree = null;
     var current = -1;
+    var swallowClick = false; // set by the tree when a drag ends on a node
     nav.hidden = false;
 
     /* ── going somewhere ───────────────────────────────────────────────── */
     function hrefOf(p) { return data.url + (p.page > 1 ? '?page=' + p.page : '') + '#post-' + p.id; }
     function elementOf(p) { return p.page === data.page ? document.getElementById('post-' + p.id) : null; }
 
+    // The whole topic is not on screen: a post is scrolled to when it is on
+    // the page being read, and only loaded when it is on another one.
+    // `instant` and prefers-reduced-motion both mean "no animation", and it is
+    // said outright rather than left to 'auto': a site whose stylesheet sets
+    // scroll-behavior: smooth would animate that one too.
+    function scrollToPost(el, instant) {
+        el.scrollIntoView({ behavior: instant || motion.matches ? 'instant' : 'smooth', block: 'start' });
+    }
+
+    // The address follows the reading without a navigation, and carries the
+    // page - a bare '#post-12' would lose it. The site's transition script
+    // (transparent.js) keeps its own copy of the address in history.state and
+    // replays that on Back, so it is kept in step rather than fought.
+    function setAddress(href) {
+        if (!history.replaceState) return;
+        var state = history.state;
+        if (state && typeof state === 'object' && 'href' in state) {
+            state = Object.assign({}, state, { href: location.origin + href });
+        }
+        try { history.replaceState(state, '', href); } catch (e) { /* a sandboxed frame: the scroll still happened */ }
+    }
+
     function jump(i, instant) {
         var p = posts[clamp(Math.round(i), 0, total - 1)];
         var el = elementOf(p);
         if (!el) { window.location.href = hrefOf(p); return; }
-        el.scrollIntoView({ behavior: instant || motion.matches ? 'auto' : 'smooth', block: 'start' });
-        if (history.replaceState) history.replaceState(null, '', '#post-' + p.id);
+        scrollToPost(el, instant);
+        setAddress(hrefOf(p));
     }
 
     /* ── where the reader is ───────────────────────────────────────────── */
@@ -147,9 +170,20 @@
     window.addEventListener('resize', schedule);
 
     /* ── moving the handle: pointer and keys ───────────────────────────── */
+    // Where a press on the track lands.
     function positionAt(e) {
         var r = track.getBoundingClientRect(), h = handle.offsetHeight;
         return clamp((e.clientY - r.top - h / 2) / Math.max(1, r.height - h), 0, 1) * (total - 1);
+    }
+    // Once the drag is on, the pointer's own travel moves the handle, not where
+    // the pointer is over the track: the track is sticky and the page scrolls
+    // under it as the reading follows, so it slides away beneath a pointer held
+    // perfectly still - and reading the position off it again chased that
+    // movement, sending the handle to one end of the topic on its own.
+    var from = null;
+    function positionFrom(e) {
+        var room = Math.max(1, track.clientHeight - handle.offsetHeight);
+        return clamp(from.pos + (e.clientY - from.y) / room * (total - 1), 0, total - 1);
     }
     function preview(pos) {
         target = Math.round(pos);
@@ -158,13 +192,14 @@
     }
     track.addEventListener('pointerdown', function (e) {
         if (e.button) return;
+        from = { y: e.clientY, pos: positionAt(e) }; // before dragging, which positionFrom needs
         dragging = true;
         track.setPointerCapture(e.pointerId);
         handle.focus({ preventScroll: true });
-        preview(positionAt(e));
+        preview(from.pos);
         e.preventDefault();
     });
-    track.addEventListener('pointermove', function (e) { if (dragging) preview(positionAt(e)); });
+    track.addEventListener('pointermove', function (e) { if (dragging) preview(positionFrom(e)); });
     function release() {
         if (!dragging) return;
         dragging = false;
@@ -240,6 +275,126 @@
     var saved = null;
     try { saved = localStorage.getItem('forum.thread.view'); } catch (e) {}
     if (saved === 'tree') show('tree');
+
+    /* ── the topic's own links ─────────────────────────────────────────── */
+    /*
+     * Every link into this topic - a post's number, its permalink, "en réponse
+     * à #n", "n réponses", a node of the tree - goes to a message, not to a
+     * page: when that message is already on screen the reader should travel to
+     * it, not watch the whole page load again.
+     *
+     * The click is taken in the CAPTURE phase, on the document. The site's
+     * transition script (transparent.js) listens for clicks on the document
+     * too, and answers a link whose address carries ?page= with a full page
+     * load - even when it points at the page already being read, because it
+     * compares the link's ?page against an address it has itself rewritten
+     * without one (see the address repair below). Reached first, and with the
+     * default prevented, it stands down on its own: __main__ begins with
+     * `if (e.defaultPrevented) return;`.
+     */
+    var topicPath = new URL(data.url, document.baseURI).pathname;
+
+    // The post a link points at, or null for anything else (the quote and
+    // branch tools go to #reply, the pager to another page: not ours).
+    function postOfHref(href) {
+        if (!href) return null;
+        var url;
+        try { url = new URL(href, document.baseURI); } catch (e) { return null; }
+        if (url.pathname !== topicPath) return null;
+        var m = /^#post-(\d+)$/.exec(url.hash);
+        return m && byId[m[1]] ? byId[m[1]] : null;
+    }
+
+    var marked = null, markTimer = null;
+
+    // Where the reader was sent. A post is not focusable of itself, so it is
+    // made focusable for as long as it is the one being pointed at - that is
+    // what carries a screen reader and the Tab key to the message, the way a
+    // real fragment navigation would.
+    function point(el) {
+        if (marked) { marked.classList.remove('is-target'); marked.style.boxShadow = ''; }
+        clearTimeout(markTimer);
+        marked = el;
+        el.setAttribute('tabindex', '-1');
+        el.focus({ preventScroll: true });
+        el.classList.add('is-target');
+        // The stylesheet rings :target, which only a real fragment navigation
+        // sets - not the replaceState above. Until it rings .is-target too,
+        // the ring is worn here so the message is never merely "somewhere on
+        // screen"; when the rule lands this does nothing.
+        if (window.getComputedStyle(el).boxShadow === 'none') {
+            el.style.boxShadow = '0 0 0 3px var(--forum-pink, #FF3399)';
+        }
+        markTimer = setTimeout(function () {
+            el.classList.remove('is-target');
+            el.style.boxShadow = '';
+            marked = null;
+        }, 2200);
+    }
+
+    function follow(p, instant) {
+        var el = elementOf(p);
+        if (!el) { window.location.href = hrefOf(p); return; } // another page: a real load, its address keeping ?page
+        scrollToPost(el, instant);
+        point(el);
+        setAddress(hrefOf(p));
+        setPosition(p.index);
+        if (tree) tree.highlight(p.index, true);
+    }
+
+    document.addEventListener('click', function (e) {
+        // A drag that ended on a tree node is not a click on its link.
+        if (swallowClick) { e.preventDefault(); return; }
+        // Already answered, or the reader asking for a new tab/window: leave
+        // the browser and the other handlers to it.
+        if (e.defaultPrevented || e.button || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+        var a = e.target && e.target.closest ? e.target.closest('a') : null;
+        if (!a) return;
+        // getAttribute, not .href: on the tree's SVG links that property is an
+        // SVGAnimatedString, not the address.
+        var p = postOfHref(a.getAttribute('href'));
+        if (!p) return;
+        e.preventDefault();
+        follow(p);
+    }, true);
+
+    /*
+     * Two repairs to the address, both of the same cause: transparent.js
+     * rewrites it from the path alone when the page opens
+     * (location.origin + location.pathname + location.hash), so a topic opened
+     * at ?page=3 is shown as page 1's address while page 3 is on screen. A
+     * reload - and base-bundle's own USER/INFO cookie reloads the first page
+     * of a visit - then really does land on page 1.
+     */
+    if (data.page > 1) {
+        var here = new URL(location.href);
+        if (here.searchParams.get('page') !== String(data.page)) {
+            here.searchParams.set('page', data.page);
+            setAddress(here.pathname + here.search + here.hash);
+        }
+    }
+
+    // Landing on a message: a link followed from another page, a reload, an
+    // address someone shared. The browser's own jump happens before the page
+    // has settled (and not at all when it was the hash that changed), so the
+    // post is put in view here, without an animation - it is where the reader
+    // arrives, not somewhere they travelled to.
+    var moved = false;
+    ['wheel', 'touchstart', 'keydown', 'pointerdown'].forEach(function (name) {
+        window.addEventListener(name, function () { moved = true; }, { passive: true, once: true });
+    });
+    function arrive() {
+        var p = postOfHref(location.hash);
+        if (!p || moved) return;
+        var el = elementOf(p);
+        if (!el) return;
+        scrollToPost(el, true);
+        point(el);
+        setPosition(p.index);
+    }
+    arrive();
+    // Once more when the images and fonts have settled, since they move posts.
+    window.addEventListener('load', arrive);
 
     /* ── the message tree ──────────────────────────────────────────────── */
     function createTree(host) {
@@ -413,7 +568,7 @@
             var pt = new DOMPoint(e.clientX, e.clientY).matrixTransform(ctm.inverse());
             return { x: pt.x, y: pt.y };
         }
-        var press = null, swallowClick = false;
+        var press = null;
         svg.addEventListener('pointerdown', function (e) {
             var a = e.target.closest && e.target.closest('.forum-tree-node');
             if (a && !e.button) press = { i: +a.getAttribute('data-index'), x: e.clientX, y: e.clientY, id: e.pointerId };
@@ -454,11 +609,12 @@
         }
         svg.addEventListener('pointerup', letGo);
         svg.addEventListener('pointercancel', letGo);
+        // A node's link is a link like any other of the topic: the document's
+        // capture handler above answers it (and swallows the click that only
+        // ended a drag). Nothing to do here but keep a click on the bark, not
+        // on a node, from doing anything at all.
         svg.addEventListener('click', function (e) {
-            var a = e.target.closest && e.target.closest('.forum-tree-node');
-            if (!a && !swallowClick) return;
-            e.preventDefault();
-            if (a && !swallowClick) jump(+a.getAttribute('data-index'));
+            if (!e.target.closest || !e.target.closest('.forum-tree-node')) e.preventDefault();
         });
 
         return {

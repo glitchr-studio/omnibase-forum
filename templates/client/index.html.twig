@@ -24,10 +24,19 @@
             <ul class="forum-boards" id="forum-group-{{ group.id }}">
                 {% for board in boards %}
                     {% set c = counts[board.id]|default({topics: 0, replies: 0}) %}
-                    {% set state = board.locked ? 'lock' : (board.requiredRole ? 'announce' : 'default') %}
-                    <li class="forum-board{{ board.locked ? ' is-locked' }}">
+                    {#
+                     # The badge says the board's state, the way a topic row says
+                     # its topic's: locked, reserved to a rank, or holding a
+                     # popular topic. `hot` is one grouped query for the whole
+                     # page (TopicRepository::findHotCategoryIds), at the very
+                     # threshold a topic row uses, so the legend means one thing.
+                     #}
+                    {% set board_hot = hot is defined and hot[board.id]|default(false) %}
+                    {% set state = board.locked ? 'lock' : (board.requiredRole ? 'announce' : (board_hot ? 'hot' : 'default')) %}
+                    {% set state_title = {lock: '@forum.board.locked', announce: '@forum.board.private', hot: '@forum.folder.hot_board'}[state]|default('') %}
+                    <li class="forum-board{{ board.locked ? ' is-locked' }}{{ board_hot ? ' is-hot' }}">
                         <a class="forum-board-icon" href="{{ path('forum_category', {slug: board.slug}) }}" aria-hidden="true" tabindex="-1">
-                            {% include '@Forum/client/_folder.html.twig' with {state: state, size: 40, title: board.locked ? '@forum.board.locked'|trans : (board.requiredRole ? '@forum.board.private'|trans : '')} %}
+                            {% include '@Forum/client/_folder.html.twig' with {state: state, size: 40, title: state_title ? state_title|trans : ''} %}
                         </a>
                         <div class="forum-board-text">
                             <a class="forum-board-title" href="{{ path('forum_category', {slug: board.slug}) }}">{{ board.title }}</a>
@@ -61,6 +70,9 @@
     {% else %}
         <p class="forum-empty">{{ '@forum.index.no_board'|trans }}</p>
     {% endfor %}
+
+    {# What the board badges mean, as the 2004 index spelled it out. #}
+    {% if groups|length %}{% include '@Forum/client/_legend.html.twig' with {scope: 'board'} only %}{% endif %}
 {% endblock %}
 
 {% block javascripts %}

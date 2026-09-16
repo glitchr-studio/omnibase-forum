@@ -129,28 +129,12 @@
 {% endblock %}
 
 {#
- # The topic's pages: first, last, and two either side of the current one.
- # Drawn here rather than with base-bundle's paginator(), whose "next ones"
- # links call trans(null) and break every topic longer than one page.
+ # The topic's pages, above and below the posts: the BBS's one pager
+ # (_pager.html.twig), the same row of arrows and numbers the board, tag,
+ # search and feed lists draw.
  #}
 {% block forum_pager %}
-{% if posts.totalPages > 1 %}
-<nav aria-label="{{ '@forum.timeline.pages'|trans }}">
-    <ul class="pagination">
-        {% for n in 1..posts.totalPages %}
-            {% if n == 1 or n == posts.totalPages or (n - posts.page)|abs <= 2 %}
-                {% if n == posts.page %}
-                    <li class="active"><span aria-current="page">{{ n }}</span></li>
-                {% else %}
-                    <li><a href="{{ path('forum_topic', {slug: topic.slug, page: n > 1 ? n : null}) }}">{{ n }}</a></li>
-                {% endif %}
-            {% elseif (n - posts.page)|abs == 3 %}
-                <li class="disabled"><span>…</span></li>
-            {% endif %}
-        {% endfor %}
-    </ul>
-</nav>
-{% endif %}
+{% include '@Forum/client/_pager.html.twig' with {pagination: posts, route: 'forum_topic', params: {slug: topic.slug}} %}
 {% endblock %}
 
 {#

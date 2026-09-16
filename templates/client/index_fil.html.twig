@@ -86,7 +86,7 @@
             </li>
             {% endfor %}
         </ol>
-        {% if latest.totalPages > 1 %}{{ paginator(latest, 'forum_index', {vue: 'fil'}) }}{% endif %}
+        {% include '@Forum/client/_pager.html.twig' with {pagination: latest, route: 'forum_index', params: {vue: 'fil'}} %}
         {% endif %}
     </section>
 {% endblock %}

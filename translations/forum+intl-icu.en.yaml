@@ -16,6 +16,27 @@ board:
   private: "Restricted board"
   last_message: "Go to the last message"
 
+# Badge tooltips, and the legend under the lists. The words are the 2004
+# board's own: Popular, Locked, Announcement, Sticky.
+folder:
+  hot: "Popular topic"
+  hot_board: "Popular board"
+  announce: "Announcement"
+
+legend:
+  label: "Badge legend"
+  topic:
+    default: "Topic"
+    hot: "Popular"
+    lock: "Locked"
+    announce: "Announcement"
+    sticky: "Sticky"
+  board:
+    default: "Board"
+    hot: "Popular board"
+    lock: "Locked board"
+    announce: "Restricted board"
+
 list:
   topic: "Topic"
   board: "Board"
@@ -24,6 +45,15 @@ list:
   activity: "Activity"
   by: "by"
   empty: "Nothing here yet. Be the first to start a topic!"
+
+pager:
+  label: "Pages"
+  status: "Page {current} of {total}"
+  page: "Page {number}"
+  first: "First page"
+  previous: "Previous page"
+  next: "Next page"
+  last: "Last page"
 
 topic:
   new: "New topic"

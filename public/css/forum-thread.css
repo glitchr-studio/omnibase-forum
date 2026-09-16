@@ -7,7 +7,7 @@
  */
 
 /* ── a column of its own, when the layout has none (no forum_side block) ─ */
-.forum-thread-grid { display: grid; grid-template-columns: minmax(0, 1fr) 13rem; gap: 1.25rem; align-items: stretch; }
+.forum-thread-grid { display: grid; grid-template-columns: minmax(0, 1fr) clamp(12rem, 18%, 17rem); gap: 1.25rem; align-items: stretch; }
 .forum-thread-grid > .forum-main { min-width: 0; }
 @media (max-width: 900px) { .forum-thread-grid { grid-template-columns: minmax(0, 1fr); } }
 

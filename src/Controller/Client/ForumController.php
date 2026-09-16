@@ -31,6 +31,9 @@ class ForumController extends AbstractController
         private readonly EntityManagerInterface $entityManager,
         private readonly PaginatorInterface $paginator,
         #[Autowire('%forum.topics_per_page%')] private readonly int $topicsPerPage = 20,
+        // phpBB's hot_threshold: the replies from which a topic is popular,
+        // and with it the board that holds it.
+        #[Autowire('%forum.hot_threshold%')] private readonly int $hotThreshold = 25,
     ) {
         $this->categories = $entityManager->getRepository(Category::class);
         $this->topics = $entityManager->getRepository(\Base\Forum\Entity\Topic::class);
@@ -89,6 +92,9 @@ class ForumController extends AbstractController
                 'view' => $view,
                 'groups' => $groups,
                 'counts' => $counts,
+                // The boards holding a popular topic, so a board row wears the
+                // same badge its topics do. One grouped query for the page.
+                'hot' => $this->topics->findHotCategoryIds($this->hotThreshold),
                 // Each board's last message: who, when, in which topic.
                 'last' => $this->topics->findLastPerCategory(),
                 'latest' => $latest,
@@ -119,6 +125,7 @@ class ForumController extends AbstractController
             return $this->render('@Forum/client/group.html.twig', [
                 'group' => $category,
                 'counts' => $this->topics->countPerCategory(),
+                'hot' => $this->topics->findHotCategoryIds($this->hotThreshold),
             ]);
         }
 

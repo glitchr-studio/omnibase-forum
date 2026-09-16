@@ -112,7 +112,12 @@
 .forum-posts { list-style: none; margin: 0; padding: 0; }
 .forum-post { display: grid; grid-template-columns: 110px 1fr; gap: 1rem; margin-bottom: .8rem; background: #fff; border: 1px solid var(--forum-line); border-radius: var(--forum-radius); overflow: hidden; scroll-margin-top: 1rem; }
 .forum-post.is-first { border-color: var(--forum-blue); }
-.forum-post:target { box-shadow: 0 0 0 3px var(--forum-pink); }
+/* A post is rung when the address points at it (:target) and when the reader
+   was scrolled to it without a navigation (forum-thread.js sets is-target:
+   replaceState never fires :target). The focus that comes with it is for
+   screen readers and keyboards; the ring already says where we landed. */
+.forum-post:target, .forum-post.is-target { box-shadow: 0 0 0 3px var(--forum-pink); }
+.forum-post.is-target:focus, .forum-post:target:focus { outline: none; }
 .forum-post-author { display: flex; flex-direction: column; align-items: center; gap: .35rem; padding: 1rem .5rem; background: var(--forum-blue-pale); text-align: center; font-size: 12px; }
 .forum-post-author-level { color: var(--forum-muted); }
 .forum-post-body { display: flex; flex-direction: column; min-width: 0; }
@@ -162,10 +167,31 @@
 .forum-box-body ul { margin: 0; padding-left: 1.1rem; }
 .forum-box-new .forum-box-title { background: var(--forum-pink); }
 
-/* ── pagination (base-bundle's sliding control) ───────────────────────── */
-.forum .pagination { display: flex; flex-wrap: wrap; gap: .25rem; margin: .8rem 0; padding: 0; list-style: none; justify-content: center; }
-.forum .pagination a, .forum .pagination span, .forum .page-link { display: inline-block; min-width: 2rem; padding: .25rem .5rem; text-align: center; border-radius: 6px; border: 1px solid var(--forum-line); background: #fff; }
-.forum .pagination .active a, .forum .pagination .active span, .forum .page-item.active .page-link { background: var(--forum-blue); color: #fff; border-color: var(--forum-blue); }
+/* ── the pager (_pager.html.twig) ─────────────────────────────────────────
+   The 2004 row - « ‹ 1 2 3 4 › » - on a card of its own inside the page, so
+   it reads as part of the list and not as bare boxes loose on the site's
+   blue. Plain anchors, no <ul>: a host styling `nav ul` (Chapaland's sets
+   flex-direction: column) stood the numbers on end, one per line. Every step
+   is a 40px square - what a finger needs - and the row wraps when the pages
+   are many. It replaces base-bundle's .pagination, which no forum page
+   draws any more. */
+.forum-pager { display: flex; flex-flow: row wrap; justify-content: center; align-items: center; gap: .3rem; margin: .9rem 0; padding: .45rem .6rem; background: #fff; border: 1px solid var(--forum-line); border-radius: var(--forum-radius); }
+/* Said aloud, never drawn: "Page 2 sur 4", and each arrow's own name. */
+.forum-pager-status { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.forum .forum-pager-num, .forum .forum-pager-step { display: inline-grid; place-items: center; box-sizing: border-box; min-width: 2.5rem; height: 2.5rem; padding: 0 .45rem; border: 1px solid var(--forum-line); border-radius: 8px; background: #fff; color: var(--forum-blue-dark); font: bold 13px Verdana, sans-serif; }
+.forum .forum-pager-step { font-size: 17px; line-height: 1; }
+.forum a.forum-pager-num:hover, .forum a.forum-pager-step:hover { background: var(--forum-blue-pale); border-color: var(--forum-blue); color: var(--forum-blue-dark); text-decoration: none; }
+.forum a.forum-pager-num:focus-visible, .forum a.forum-pager-step:focus-visible { outline: 2px solid var(--forum-blue-dark); outline-offset: 1px; }
+/* The page you are on, in the site's pink - the one mark the old pager lost. */
+.forum .forum-pager-num.is-current { background: var(--forum-pink); border-color: var(--forum-pink); color: #fff; }
+.forum .forum-pager-step.is-disabled { color: var(--forum-muted); background: var(--forum-blue-pale); opacity: .6; }
+.forum-pager-gap { padding: 0 .15rem; color: var(--forum-muted); }
+@media (max-width: 430px) {
+    /* A four-page topic is eight steps wide, and on a 390px screen the last
+       arrow fell to a line of its own. The room comes from the gaps and the
+       card's sides; the 40px hit areas are what a finger needs and stay. */
+    .forum-pager { gap: .2rem; padding: .4rem .35rem; }
+}
 
 @media (max-width: 720px) {
     .forum-topics thead { display: none; }
@@ -239,7 +265,10 @@
    between .forum and the column clips (no overflow), so a box in it may be
    position: sticky - the topic's timeline is. One column under 900px, the
    boxes after the page. */
-.forum-page { display: grid; grid-template-columns: minmax(0, 1fr) 15rem; gap: 1.25rem; align-items: start; }
+/* The side column follows the page's width instead of holding 15rem come
+   what may: on a wide screen it has room for the tag cloud, on a narrow page
+   it gives its width back to the boards rather than squeezing them. */
+.forum-page { display: grid; grid-template-columns: minmax(0, 1fr) clamp(12rem, 18%, 17rem); gap: 1.25rem; align-items: start; }
 .forum-main { min-width: 0; }
 .forum-side { display: flex; flex-direction: column; gap: 1rem; min-width: 0; align-self: stretch; }
 .forum-side .forum-box { margin: 0; }

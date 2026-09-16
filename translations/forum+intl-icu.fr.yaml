@@ -16,6 +16,28 @@ board:
   private: "Forum réservé"
   last_message: "Aller au dernier message"
 
+# Les infobulles des pastilles, et la légende sous les listes. Les mots sont
+# ceux du BBS de 2004 (lang_french/lang_main.php) : « Populaire »,
+# « Verrouillé », « Annonce », « Post-it ».
+folder:
+  hot: "Sujet populaire"
+  hot_board: "Forum populaire"
+  announce: "Annonce"
+
+legend:
+  label: "Légende des pastilles"
+  topic:
+    default: "Sujet"
+    hot: "Populaire"
+    lock: "Verrouillé"
+    announce: "Annonce"
+    sticky: "Post-it"
+  board:
+    default: "Forum"
+    hot: "Forum populaire"
+    lock: "Forum verrouillé"
+    announce: "Forum réservé"
+
 list:
   topic: "Sujet"
   board: "Forum"
@@ -24,6 +46,15 @@ list:
   activity: "Activité"
   by: "par"
   empty: "Rien par ici pour l'instant. Sois le premier à lancer un sujet !"
+
+pager:
+  label: "Pages"
+  status: "Page {current} sur {total}"
+  page: "Page {number}"
+  first: "Première page"
+  previous: "Page précédente"
+  next: "Page suivante"
+  last: "Dernière page"
 
 topic:
   new: "Nouveau sujet"

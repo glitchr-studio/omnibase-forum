@@ -22,11 +22,21 @@
     </thead>
     <tbody>
     {% for topic in topics %}
-        {% set hot = topic.replies >= 25 %}
-        <tr class="forum-topic-row{{ topic.pinned ? ' is-pinned' }}{{ topic.locked ? ' is-locked' }}{{ hot ? ' is-hot' }}">
+        {#
+         # phpBB's folder precedence, top down: an announcement (a topic in a
+         # board only the staff writes in, the same reading the feed view
+         # gives them), a post-it, a locked topic, a popular one, then the
+         # plain folder. "Popular" is the site's own forum.hot_threshold,
+         # asked of the extension rather than written as a number here.
+         #}
+        {% set hot = forum_is_hot(topic) %}
+        {% set announce = topic.category and topic.category.locked %}
+        {% set state = announce ? 'announce' : (topic.pinned ? 'sticky' : (topic.locked ? 'lock' : (hot ? 'hot' : 'default'))) %}
+        {% set state_title = {announce: '@forum.folder.announce', sticky: '@forum.topic.pinned', lock: '@forum.topic.locked', hot: '@forum.folder.hot'}[state]|default('') %}
+        <tr class="forum-topic-row{{ announce ? ' is-announce' }}{{ topic.pinned ? ' is-pinned' }}{{ topic.locked ? ' is-locked' }}{{ hot ? ' is-hot' }}">
             <td class="col-topic">
                 <div class="forum-topic-main">
-                    {% include '@Forum/client/_folder.html.twig' with {state: topic.pinned ? 'sticky' : (topic.locked ? 'lock' : (hot ? 'hot' : 'default')), title: topic.pinned ? '@forum.topic.pinned'|trans : (topic.locked ? '@forum.topic.locked'|trans : '')} %}
+                    {% include '@Forum/client/_folder.html.twig' with {state: state, title: state_title ? state_title|trans : ''} %}
                     <div class="forum-topic-text">
                         <a class="forum-topic-title" href="{{ path('forum_topic', {slug: topic.slug}) }}">{{ topic.title }}</a>
                         <div class="forum-topic-meta">
@@ -61,4 +71,6 @@
     {% endfor %}
     </tbody>
 </table>
+{# What the badges above mean - the 2004 board carried the same block under every list. #}
+{% include '@Forum/client/_legend.html.twig' with {scope: 'topic'} only %}
 {% endif %}

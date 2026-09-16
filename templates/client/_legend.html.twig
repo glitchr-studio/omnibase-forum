@@ -1,0 +1,35 @@
+{#
+ # The legend the 2004 board carried under its lists (viewforum_body.tpl): one
+ # entry per state a folder badge can take, drawn with the very art and the
+ # very words the rows above it use. Variables:
+ #
+ #   scope   'topic' (a topic list) | 'board' (the board list) - the same five
+ #           badges read differently on a board row, so the words differ
+ #
+ # phpBB listed every state twice, "new messages" and "no new messages". That
+ # half is NOT drawn here: nothing in base-bundle records what a member has
+ # already read (there is no per-thread visit), so a "new" entry could only
+ # ever be false. The day a read marker exists, add the pairs back here and in
+ # _folder.html.twig, whose new/new_hot/new_lock art is already waiting.
+ #}
+{% set scope = scope|default('topic') %}
+{% set states = 'board' == scope ? ['default', 'hot', 'lock', 'announce'] : ['default', 'hot', 'lock', 'announce', 'sticky'] %}
+
+{#
+ # Styled here rather than in forum.css: the block is small, self-contained,
+ # and belongs with the markup it describes.
+ #}
+<style>
+.forum-legend { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem 1.25rem; margin: .75rem 0 0; padding: .55rem .9rem; list-style: none; background: #fff; border: 1px solid var(--forum-line); border-radius: var(--forum-radius); font-size: 12px; color: var(--forum-muted); }
+.forum-legend-item { display: flex; align-items: center; gap: .4rem; }
+.forum-legend .forum-folder { width: auto; height: 22px; }
+</style>
+
+<ul class="forum-legend" aria-label="{{ '@forum.legend.label'|trans }}">
+    {% for state in states %}
+        <li class="forum-legend-item forum-legend-{{ state }}">
+            {% include '@Forum/client/_folder.html.twig' with {state: state, size: 22} only %}
+            <span>{{ ('@forum.legend.' ~ scope ~ '.' ~ state)|trans }}</span>
+        </li>
+    {% endfor %}
+</ul>
