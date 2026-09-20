@@ -1,0 +1,10 @@
+{#
+ # One page of a topic's messages and nothing else: what forum-thread.js
+ # fetches (TopicController::STREAM_HEADER) to add to the topic as the reader
+ # scrolls past the page they opened, or to jump to a message pages away. The
+ # same _post.html.twig the page itself draws, so the two cannot differ.
+ #}
+{% set has_icons = source('@Forum/client/_icon.html.twig', true) is not empty %}
+{% for post in posts %}
+    {% include '@Forum/client/_post.html.twig' with {post: post, topic: topic, node: outline_index[post.id] ?? null, current_page: posts.page, retro: retro, has_icons: has_icons} %}
+{% endfor %}

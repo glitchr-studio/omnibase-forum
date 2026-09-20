@@ -58,6 +58,8 @@ pager:
 
 topic:
   new: "Nouveau sujet"
+  linked_from: "À partir du message"
+  linked_opening: "Suite de [« {title} », message #{number}]({url})"
   new_hint: "Un titre clair, le bon forum, une ou deux étiquettes : tout le monde s'y retrouve."
   edit: "Modifier le sujet"
   edit_hint: "Le titre et les étiquettes se changent ici ; le message lui-même se modifie sous le message."
@@ -65,6 +67,9 @@ topic:
   pinned: "Sujet épinglé"
   locked: "Sujet verrouillé"
   locked_note: "Ce sujet est verrouillé, on ne peut plus y répondre."
+  page_of: "Page {page}/{total}"
+  jump_to: "Sauter vers :"
+  go: "go"
   like: "J'aime"
   liked: "Aimé"
   follow: "Suivre"
@@ -78,6 +83,7 @@ topic:
 
 post:
   permalink: "Lien vers ce message"
+  re: "Re: {title}"
   reply_to: "en réponse à #{number}"
   edited: "{count, plural, one {modifié} other {modifié # fois}}"
   deleted: "Ce message a été supprimé."
@@ -89,6 +95,7 @@ post:
   delete_confirm: "Supprimer ce message ?"
   restore_confirm: "Restaurer ce message ?"
   branch: "Répondre à ce message"
+  linked_topic: "Nouveau sujet à partir de ce message"
   branch_cancel: "répondre au sujet plutôt"
   replies: "{count, plural, one {# réponse} other {# réponses}}"
   tools: "Actions sur le message"
@@ -97,10 +104,12 @@ post:
     short: "Un peu court, non ?"
     long: "Ton message dépasse {{ limit }} caractères."
 
+stream:
+  loading: "Chargement des messages…"
+  failed: "Les messages n'ont pas pu être chargés. Réessaie en faisant défiler."
+
 timeline:
   label: "Où en es-tu dans le sujet"
-  views: "Affichage du sujet"
-  view_timeline: "Fil"
   position: "{current} / {total}"
   slider: "Position dans le sujet"
   top: "Retour en haut"
@@ -108,15 +117,8 @@ timeline:
   where: "Où suis-je ?"
   previous_topic: "Sujet précédent"
   next_topic: "Sujet suivant"
+  neighbours: "Sujets voisins"
   pages: "Pages du sujet"
-
-tree:
-  title: "Arbre à messages"
-  label: "L'arbre à messages du sujet"
-  hint: "Le tronc, c'est la conversation. Chaque « Répondre à ce message » fait pousser une branche. Tire une feuille pour plier sa branche."
-  node: "#{number} · {author} · {date}"
-  nobody: "membre disparu"
-  deleted: "supprimé"
 
 reply:
   title: "Répondre"
@@ -175,6 +177,11 @@ flash:
   board_locked: "Ce forum n'accepte plus de nouveaux sujets."
   flood: "Doucement ! Attends encore {seconds} secondes avant de poster à nouveau."
 
+style:
+  label: "Style du sujet"
+  retro: "2005"
+  cartes: "Cartes"
+
 view:
   label: "Affichage du BBS"
   classique: "Classique"
@@ -184,6 +191,10 @@ fil:
   announcements: "Annonces"
   pinned: "Post-it"
   latest: "Toutes les discussions"
+  trending: "Ce dont on parle"
+  sort: "Ordre du fil"
+  sort_recent: "Récents"
+  sort_trending: "Populaires"
 
 admin:
   order:

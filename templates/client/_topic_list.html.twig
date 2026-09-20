@@ -2,7 +2,9 @@
  # The topic list: the folder badge, which alone says the topic's state
  # (pinned, locked, hot or plain); the title with its tags and author; then the
  # counters and the last message, when and who, with the envelope leading to
- # it. Variables: topics (a Pagination), show_category (bool).
+ # it. Variables: topics (a Pagination), show_category (bool), and stream_url -
+ # the list's address without its page - for a list read as one as the reader
+ # scrolls (forum-feed.js); without it, the pager alone moves through it.
  #}
 {# Not |default(true): Twig's default takes false for empty, and the board's own page passes false. #}
 {% set show_category = show_category is defined ? show_category : true %}
@@ -20,54 +22,10 @@
             <th class="col-activity">{{ '@forum.list.activity'|trans }}</th>
         </tr>
     </thead>
-    <tbody>
+    {% set streamed = stream_url is defined and stream_url and (topics.totalPages ?? 1) > 1 %}
+    <tbody{% if streamed %} data-forum-feed data-page="{{ topics.page }}" data-pages="{{ topics.totalPages }}" data-url="{{ stream_url }}" data-loading="{{ '@forum.stream.loading'|trans }}" data-failed="{{ '@forum.stream.failed'|trans }}"{% endif %}>
     {% for topic in topics %}
-        {#
-         # phpBB's folder precedence, top down: an announcement (a topic in a
-         # board only the staff writes in, the same reading the feed view
-         # gives them), a post-it, a locked topic, a popular one, then the
-         # plain folder. "Popular" is the site's own forum.hot_threshold,
-         # asked of the extension rather than written as a number here.
-         #}
-        {% set hot = forum_is_hot(topic) %}
-        {% set announce = topic.category and topic.category.locked %}
-        {% set state = announce ? 'announce' : (topic.pinned ? 'sticky' : (topic.locked ? 'lock' : (hot ? 'hot' : 'default'))) %}
-        {% set state_title = {announce: '@forum.folder.announce', sticky: '@forum.topic.pinned', lock: '@forum.topic.locked', hot: '@forum.folder.hot'}[state]|default('') %}
-        <tr class="forum-topic-row{{ announce ? ' is-announce' }}{{ topic.pinned ? ' is-pinned' }}{{ topic.locked ? ' is-locked' }}{{ hot ? ' is-hot' }}">
-            <td class="col-topic">
-                <div class="forum-topic-main">
-                    {% include '@Forum/client/_folder.html.twig' with {state: state, title: state_title ? state_title|trans : ''} %}
-                    <div class="forum-topic-text">
-                        <a class="forum-topic-title" href="{{ path('forum_topic', {slug: topic.slug}) }}">{{ topic.title }}</a>
-                        <div class="forum-topic-meta">
-                            {% for tag in topic.tags %}
-                                <a class="forum-tag forum-tag-sm" href="{{ path('forum_tag', {slug: tag.slug}) }}" style="{{ tag.color ? '--tag:' ~ tag.color : '' }}">{{ tag }}</a>
-                            {% endfor %}
-                            <span class="forum-topic-by">{{ '@forum.list.by'|trans }} {% include '@Forum/client/_member.html.twig' with {user: topic.author} %}</span>
-                        </div>
-                    </div>
-                </div>
-            </td>
-            {% if show_category %}
-            <td class="col-cat">
-                {% if topic.category %}
-                <a class="forum-cat-badge" href="{{ path('forum_category', {slug: topic.category.slug}) }}" style="{{ topic.category.color ? '--cat:' ~ topic.category.color : '' }}">
-                    <span class="forum-cat-dot"></span>{{ topic.category.title }}
-                </a>
-                {% endif %}
-            </td>
-            {% endif %}
-            <td class="col-num">{{ topic.replies }}</td>
-            <td class="col-num">{{ topic.views }}</td>
-            <td class="col-activity">
-                {% set at = topic.activityAt %}
-                <time datetime="{{ at ? at|date('c') : '' }}" title="{{ at ? at|datetime('d MMMM yyyy, HH:mm') : '' }}">{{ at ? at|datetime('d MMM yyyy') : '' }}</time>
-                <div class="forum-topic-last">
-                    {% if topic.lastPoster or topic.author %}{% include '@Forum/client/_member.html.twig' with {user: topic.lastPoster ?? topic.author} %}{% endif %}
-                    <a class="forum-board-last-go" href="{{ path('forum_topic', {slug: topic.slug}) }}">{% include '@Forum/client/_icon.html.twig' with {name: 'latest_reply', title: '@forum.board.last_message'|trans} %}</a>
-                </div>
-            </td>
-        </tr>
+        {% include '@Forum/client/_topic_row.html.twig' with {topic: topic, show_category: show_category, page: topics.page ?? 1} %}
     {% endfor %}
     </tbody>
 </table>

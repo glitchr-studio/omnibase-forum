@@ -1,0 +1,8 @@
+{#
+ # One page of the feed's discussions and nothing else: what forum-feed.js
+ # fetches (ForumController::Index, TopicController::STREAM_HEADER) to add to
+ # the list as the reader scrolls. Variables: latest.
+ #}
+{% for topic in latest %}
+    {% include '@Forum/client/_feed_row.html.twig' with {topic: topic, page: latest.page} %}
+{% endfor %}

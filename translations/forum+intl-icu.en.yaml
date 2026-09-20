@@ -57,6 +57,8 @@ pager:
 
 topic:
   new: "New topic"
+  linked_from: "Started from the message"
+  linked_opening: "Continued from [“{title}”, post #{number}]({url})"
   new_hint: "A clear title, the right board, a tag or two: everyone finds their way."
   edit: "Edit topic"
   edit_hint: "Title and tags are changed here; the message itself is edited below the message."
@@ -64,6 +66,9 @@ topic:
   pinned: "Pinned topic"
   locked: "Locked topic"
   locked_note: "This topic is locked, it takes no more replies."
+  page_of: "Page {page}/{total}"
+  jump_to: "Jump to:"
+  go: "go"
   like: "Like"
   liked: "Liked"
   follow: "Follow"
@@ -77,6 +82,7 @@ topic:
 
 post:
   permalink: "Link to this post"
+  re: "Re: {title}"
   reply_to: "in reply to #{number}"
   edited: "{count, plural, one {edited} other {edited # times}}"
   deleted: "This post was deleted."
@@ -88,6 +94,7 @@ post:
   delete_confirm: "Delete this post?"
   restore_confirm: "Restore this post?"
   branch: "Reply to this post"
+  linked_topic: "New topic from this post"
   branch_cancel: "reply to the topic instead"
   replies: "{count, plural, one {# reply} other {# replies}}"
   tools: "Post actions"
@@ -96,10 +103,12 @@ post:
     short: "A bit short, isn't it?"
     long: "Your post exceeds {{ limit }} characters."
 
+stream:
+  loading: "Loading posts…"
+  failed: "The posts could not be loaded. Scroll again to retry."
+
 timeline:
   label: "Where you are in the topic"
-  views: "Topic display"
-  view_timeline: "Timeline"
   position: "{current} / {total}"
   slider: "Position in the topic"
   top: "Back to top"
@@ -107,15 +116,8 @@ timeline:
   where: "Where am I?"
   previous_topic: "Previous topic"
   next_topic: "Next topic"
+  neighbours: "Neighbouring topics"
   pages: "Topic pages"
-
-tree:
-  title: "Message tree"
-  label: "The topic's message tree"
-  hint: "The trunk is the conversation. Every “Reply to this post” grows a branch. Pull a leaf to bend its branch."
-  node: "#{number} · {author} · {date}"
-  nobody: "deleted member"
-  deleted: "deleted"
 
 reply:
   title: "Reply"
@@ -174,6 +176,11 @@ flash:
   board_locked: "This board takes no new topics."
   flood: "Easy! Wait another {seconds} seconds before posting again."
 
+style:
+  label: "Topic style"
+  retro: "2005"
+  cartes: "Cards"
+
 view:
   label: "BBS display"
   classique: "Classic"
@@ -183,6 +190,10 @@ fil:
   announcements: "Announcements"
   pinned: "Pinned"
   latest: "All discussions"
+  trending: "What people are talking about"
+  sort: "Feed order"
+  sort_recent: "Recent"
+  sort_trending: "Trending"
 
 admin:
   order:

@@ -43,10 +43,14 @@ class ForumController extends AbstractController
     /**
      * The index's views. "classique" is the phpBB board list, grouped; "fil"
      * is the flat, Discourse-like feed with the announcements and the pinned
-     * topics as post-its on top. A third one (the historical message tree)
-     * slots in here with its own template.
+     * topics as post-its on top. A view no longer offered - a remembered
+     * cookie, an old ?vue= link, the "arbre" the BBS was once grown as -
+     * falls back to the first.
      */
     public const VIEWS = ['classique', 'fil'];
+
+    /** The feed's two orders: the latest activity, or what is busiest lately (?tri=). */
+    public const SORTS = ['recent', 'populaire'];
     public const VIEW_COOKIE = 'FORUM/VIEW';
 
     #[Sitemap(priority: 0.7, changefreq: 'daily')]
@@ -71,7 +75,17 @@ class ForumController extends AbstractController
             }
         }
 
-        $latest = $this->paginator->paginate($this->topics->createLatestQuery($readable), $request->query->getInt('page', 1), $this->topicsPerPage);
+        // The order asked for (?tri=); the feed shows the switch, and the
+        // classic view's own "latest" list follows it when it is asked for.
+        $sort = (string) $request->query->get('tri', '');
+        if (!in_array($sort, self::SORTS, true)) {
+            $sort = self::SORTS[0];
+        }
+
+        $query = 'populaire' === $sort
+            ? $this->topics->createTrendingQuery($readable)
+            : $this->topics->createLatestQuery($readable);
+        $latest = $this->paginator->paginate($query, $request->query->getInt('page', 1), $this->topicsPerPage);
 
         // The view asked for (?vue=), or the one this browser last chose.
         $asked = (string) $request->query->get('vue', '');
@@ -80,9 +94,20 @@ class ForumController extends AbstractController
             $view = self::VIEWS[0];
         }
 
+        // One more page of the feed for its stream (forum-feed.js): the rows
+        // alone, and the view it was asked from is not remembered again.
+        if ('fil' === $view && $request->headers->has(TopicController::STREAM_HEADER)) {
+            $response = $this->render('@Forum/client/_feed_rows.html.twig', ['latest' => $latest]);
+            $response->setVary(TopicController::STREAM_HEADER, false);
+            $response->setPrivate();
+
+            return $response;
+        }
+
         if ('fil' === $view) {
             $response = $this->render('@Forum/client/index_fil.html.twig', [
                 'view' => $view,
+                'sort' => $sort,
                 'groups' => $groups,
                 'announcements' => $this->topics->findAnnouncements($locked),
                 'pinned' => $this->topics->findPinned($readable),
@@ -106,6 +131,7 @@ class ForumController extends AbstractController
 
         // Remembered per browser, a year: the choice holds for a reader who
         // is not signed in as much as for a member.
+        $response->setVary(TopicController::STREAM_HEADER, false);
         if ($asked === $view) {
             $response->headers->setCookie(\Symfony\Component\HttpFoundation\Cookie::create(self::VIEW_COOKIE, $view, new \DateTimeImmutable('+1 year'), '/', null, $request->isSecure(), true, false, 'lax'));
         }
@@ -133,12 +159,15 @@ class ForumController extends AbstractController
         }
 
         $topics = $this->paginator->paginate($this->topics->createCategoryQuery($category), $request->query->getInt('page', 1), $this->topicsPerPage);
+        if ($rows = $this->streamRows($request, $topics, false)) {
+            return $rows;
+        }
 
-        return $this->render('@Forum/client/category.html.twig', [
+        return $this->streamed($this->render('@Forum/client/category.html.twig', [
             'category' => $category,
             'topics' => $topics,
             'tags' => $this->topics->findTagUsage(),
-        ]);
+        ]));
     }
 
     #[Route('/bbs/t/{slug}', name: 'forum_tag')]
@@ -150,12 +179,15 @@ class ForumController extends AbstractController
         }
 
         $topics = $this->paginator->paginate($this->topics->createTagQuery($tag), $request->query->getInt('page', 1), $this->topicsPerPage);
+        if ($rows = $this->streamRows($request, $topics, true)) {
+            return $rows;
+        }
 
-        return $this->render('@Forum/client/tag.html.twig', [
+        return $this->streamed($this->render('@Forum/client/tag.html.twig', [
             'tag' => $tag,
             'topics' => $topics,
             'tags' => $this->topics->findTagUsage(),
-        ]);
+        ]));
     }
 
     #[Route('/bbs/recherche', name: 'forum_search')]
@@ -166,12 +198,39 @@ class ForumController extends AbstractController
 
         if (mb_strlen($term) >= 3) {
             $topics = $this->paginator->paginate($this->topics->createSearchQuery($term), $request->query->getInt('page', 1), $this->topicsPerPage);
+            if ($rows = $this->streamRows($request, $topics, true)) {
+                return $rows;
+            }
         }
 
-        return $this->render('@Forum/client/search.html.twig', [
+        return $this->streamed($this->render('@Forum/client/search.html.twig', [
             'term' => $term,
             'topics' => $topics,
             'tags' => $this->topics->findTagUsage(),
-        ]);
+        ]));
+    }
+
+    /**
+     * One more page of a topic list for its stream (forum-feed.js): the rows
+     * alone (_topic_rows.html.twig), when the stream asks with its header.
+     */
+    private function streamRows(Request $request, $topics, bool $showCategory): ?Response
+    {
+        if (!$request->headers->has(TopicController::STREAM_HEADER)) {
+            return null;
+        }
+
+        $response = $this->render('@Forum/client/_topic_rows.html.twig', ['topics' => $topics, 'show_category' => $showCategory]);
+        $response->setPrivate();
+
+        return $this->streamed($response);
+    }
+
+    /** The same address answers the stream with rows alone: a cache must not hand one for the other. */
+    private function streamed(Response $response): Response
+    {
+        $response->setVary(TopicController::STREAM_HEADER, false);
+
+        return $response;
     }
 }

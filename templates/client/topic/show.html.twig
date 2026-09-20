@@ -1,9 +1,10 @@
 {% extends '@Forum/client/layout.html.twig' %}
 
 {#
- # The right-hand column holds the timeline and the message tree. A layout
- # with a `forum_side` block places it; an older layout without one gets the
- # column drawn here, beside the topic (see .forum-thread-grid).
+ # The right-hand column holds the timeline, and only the timeline: beside a
+ # topic there is nothing to read but the topic. A layout with a `forum_side`
+ # block places it; an older layout without one gets the column drawn here,
+ # beside the topic (see .forum-thread-grid).
  #}
 {% set layout_has_side = block('forum_side', '@Forum/client/layout.html.twig') is defined %}
 {% set has_icons = source('@Forum/client/_icon.html.twig', true) is not empty %}
@@ -33,14 +34,14 @@
 
 {% block forum_side %}
     {{ block('forum_timeline') }}
-    {% if layout_has_side %}{{ parent() }}{% endif %}
 {% endblock %}
 
 {% block forum_topic %}
     {% set can_moderate = is_granted('FORUM_MODERATE') %}
     {% set can_edit_topic = is_granted('FORUM_EDIT', topic) %}
 
-    <article class="forum-topic" id="topic-{{ topic.id }}">
+    {% set retro = topic_style|default('retro') == 'retro' %}
+    <article class="forum-topic is-style-{{ retro ? 'retro' : 'cartes' }}" id="topic-{{ topic.id }}">
         <header class="forum-topic-head">
             <h2 class="forum-topic-heading">
                 {% if topic.pinned %}<i class="fa-solid fa-thumbtack" title="{{ '@forum.topic.pinned'|trans }}"></i>{% endif %}
@@ -83,21 +84,47 @@
             </div>
         </header>
 
-        {# 2004's "« Sujet Précédent / Sujet Suivant »", on the same board. #}
-        {% if topic_previous or topic_next %}
-        <nav class="forum-topic-nav">
-            {% if topic_previous %}<a rel="prev" href="{{ path('forum_topic', {slug: topic_previous.slug}) }}">« {{ '@forum.timeline.previous_topic'|trans }}</a>{% else %}<span></span>{% endif %}
-            {% if topic_next %}<a rel="next" href="{{ path('forum_topic', {slug: topic_next.slug}) }}">{{ '@forum.timeline.next_topic'|trans }} »</a>{% endif %}
-        </nav>
-        {% endif %}
-
         {{ block('forum_pager') }}
 
-        <ol class="forum-posts" start="{{ (posts.page - 1) * posts.pageSize + 1 }}">
-            {% for post in posts %}
-                {% include '@Forum/client/_post.html.twig' with {post: post, topic: topic, node: outline_index[post.id] ?? null, current_page: posts.page} %}
-            {% endfor %}
-        </ol>
+        {#
+         # The 2005 box: the page's messages in one white box, its bar of
+         # « Sujet Précédent / Sujet Suivant » (the same board) on top, the
+         # messages as rows under a thin rule, "Page n/N" at the foot.
+         #}
+        <div class="forum-topic-box">
+            {# The bar always heads the 2005 box; the cards only draw it when there is somewhere to go. #}
+            {% if retro or topic_previous or topic_next %}
+            <nav class="forum-topic-nav" aria-label="{{ '@forum.timeline.neighbours'|trans }}">
+                {% if topic_previous %}<a rel="prev" href="{{ path('forum_topic', {slug: topic_previous.slug}) }}">« {{ '@forum.timeline.previous_topic'|trans }}</a>{% else %}<span></span>{% endif %}
+                {% if topic_next %}<a rel="next" href="{{ path('forum_topic', {slug: topic_next.slug}) }}">{{ '@forum.timeline.next_topic'|trans }} »</a>{% else %}<span></span>{% endif %}
+            </nav>
+            {% endif %}
+
+            {#
+             # The stream: forum-thread.js adds the pages before and after this
+             # one as the reader scrolls, and fetches the page of a message the
+             # timeline or a link jumps to - one topic to read from end to end,
+             # as Discourse has it. The pagers stay for a reader without the
+             # script, and for the search engines.
+             #}
+            <ol class="forum-posts" start="{{ (posts.page - 1) * posts.pageSize + 1 }}" data-forum-stream data-page="{{ posts.page }}" data-pages="{{ max(posts.totalPages, 1) }}">
+                {% for post in posts %}
+                    {% include '@Forum/client/_post.html.twig' with {post: post, topic: topic, node: outline_index[post.id] ?? null, current_page: posts.page, retro: retro} %}
+                {% endfor %}
+            </ol>
+
+            {% if retro %}<p class="forum-topic-pagecount" data-forum-pagecount data-label="{{ '@forum.topic.page_of'|trans({page: '{page}', total: '{total}'}) }}">{{ '@forum.topic.page_of'|trans({page: posts.page, total: max(posts.totalPages, 1)}) }}</p>{% endif %}
+        </div>
+
+        {# Under the box, as the 2005 page had them: a new topic on this board, and the lock when the topic is closed. #}
+        <div class="forum-topic-badges">
+            {% if topic.category and is_granted('FORUM_POST', topic.category) %}
+                {% include '@Forum/client/_badge.html.twig' with {name: 'new_topic', href: path('forum_topic_new', {category: topic.category.slug}), title: '@forum.topic.new'|trans} %}
+            {% endif %}
+            {% if topic.locked %}
+                {% include '@Forum/client/_badge.html.twig' with {name: 'locked_topic', title: '@forum.topic.locked'|trans} %}
+            {% endif %}
+        </div>
 
         {{ block('forum_pager') }}
 
@@ -125,6 +152,21 @@
         {% elseif not is_granted('ROLE_USER') %}
             <p class="forum-locked-note">{{ '@forum.aside.login_to_write'|trans({'%login%': path('security_login'), '%register%': path('security_register')})|raw }}</p>
         {% endif %}
+
+        {# "Sauter vers", the 2005 way out of a topic: every board the reader may read (TopicController::jumpBoards), the "go" taking them there (forum.js). #}
+        {% if jump_boards|default([])|length %}
+        <form class="forum-jump" method="get" action="{{ path('forum_index') }}" data-forum-jump>
+            <label for="forum-jump-to">{{ '@forum.topic.jump_to'|trans }}</label>
+            <select id="forum-jump-to" name="to">
+                {% for group, boards in jump_boards %}
+                <optgroup label="{{ group }}">
+                    {% for board in boards %}<option value="{{ path('forum_category', {slug: board.slug}) }}"{{ topic.category and board.id == topic.category.id ? ' selected' }}>{{ board.title }}</option>{% endfor %}
+                </optgroup>
+                {% endfor %}
+            </select>
+            {% include '@Forum/client/_badge.html.twig' with {name: 'go', button: true, title: '@forum.topic.go'|trans} %}
+        </form>
+        {% endif %}
     </article>
 {% endblock %}
 
@@ -138,9 +180,9 @@
 {% endblock %}
 
 {#
- # The timeline (Discourse's scroller) and the message tree, both drawn by
- # forum-thread.js from the outline below - hidden until the script runs,
- # since neither means anything without it.
+ # The timeline (Discourse's scroller), drawn by forum-thread.js from the
+ # outline below - hidden until the script runs, since it means nothing
+ # without it. Which message answers which is read in the thread itself.
  #}
 {% block forum_timeline %}
 {% set total = outline|length %}
@@ -149,11 +191,6 @@
         <i class="fa-solid fa-signs-post" aria-hidden="true"></i> <span data-timeline-pill-label>1 / {{ total }}</span>
     </button>
     <div class="forum-timeline-panel" id="forum-timeline-panel">
-        <div class="forum-timeline-views" role="group" aria-label="{{ '@forum.timeline.views'|trans }}">
-            <button type="button" data-timeline-view="timeline" aria-pressed="true"><i class="fa-solid fa-grip-lines-vertical" aria-hidden="true"></i> {{ '@forum.timeline.view_timeline'|trans }}</button>
-            <button type="button" data-timeline-view="tree" aria-pressed="false"><i class="fa-solid fa-tree" aria-hidden="true"></i> {{ '@forum.tree.title'|trans }}</button>
-        </div>
-
         <div class="forum-timeline-scroller" data-timeline-scroller>
             <button type="button" class="forum-timeline-jump" data-timeline-top><i class="fa-solid fa-angles-up" aria-hidden="true"></i> {{ '@forum.timeline.top'|trans }}</button>
             <span class="forum-timeline-date" data-timeline-start></span>
@@ -169,11 +206,6 @@
             <span class="forum-timeline-date" data-timeline-end></span>
             <button type="button" class="forum-timeline-jump" data-timeline-bottom><i class="fa-solid fa-angles-down" aria-hidden="true"></i> {{ '@forum.timeline.bottom'|trans }}</button>
         </div>
-
-        <div class="forum-tree" data-forum-tree hidden>
-            <div class="forum-tree-host" data-forum-tree-host role="group" aria-label="{{ '@forum.tree.label'|trans }}"></div>
-            <p class="forum-tree-hint">{{ '@forum.tree.hint'|trans }}</p>
-        </div>
     </div>
 
     <script type="application/json" id="forum-outline">{{ {
@@ -181,10 +213,9 @@
         page: posts.page,
         url: path('forum_topic', {slug: topic.slug}),
         labels: {
+            loading: '@forum.stream.loading'|trans,
+            failed: '@forum.stream.failed'|trans,
             position: '@forum.timeline.position'|trans({current: '{current}', total: '{total}'}),
-            node: '@forum.tree.node'|trans({number: '{number}', author: '{author}', date: '{date}'}),
-            nobody: '@forum.tree.nobody'|trans,
-            deleted: '@forum.tree.deleted'|trans,
         },
     }|json_encode(constant('JSON_HEX_TAG') b-or constant('JSON_HEX_AMP') b-or constant('JSON_UNESCAPED_UNICODE'))|raw }}</script>
 </nav>

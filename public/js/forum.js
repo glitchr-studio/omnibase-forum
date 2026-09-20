@@ -2,10 +2,26 @@
  * The forum's few behaviours, framework-free:
  *   - like / follow buttons calling base-bundle's /api/thread/{slug}/... endpoints;
  *   - a confirm() on the destructive moderation buttons;
- *   - a tiny Markdown toolbar on every [data-forum-editor] textarea.
+ *   - a tiny Markdown toolbar on every [data-forum-editor] textarea;
+ *   - "Sauter vers", the board jump at the foot of a topic.
+ *
+ * A site that swaps pages in place (transparent.js on Chapaland) brings new
+ * buttons and editors without a new document, and runs this script again when
+ * a page brings its <script> back. So: one copy only - a later run asks the
+ * first to look again; the document-wide listeners are added once; and each
+ * button or editor is marked when it is taken care of, so none is served
+ * twice (a like toggled twice undid itself) and none that arrives later - a
+ * page swapped in, the messages a topic's stream adds - is left out.
  */
 (function () {
     'use strict';
+
+    if (window.ForumBehaviours) {
+        window.ForumBehaviours.scan();
+        return;
+    }
+
+    var BOUND = 'forumBound';
 
     function toggle(button, onAttr, offAttr, labels) {
         button.addEventListener('click', function () {
@@ -30,19 +46,6 @@
         });
     }
 
-    document.querySelectorAll('[data-forum-like]').forEach(function (b) {
-        toggle(b, 'data-like', 'data-unlike', [b.dataset.labelOff || "J'aime", b.dataset.labelOn || 'Aimé']);
-    });
-    document.querySelectorAll('[data-forum-follow]').forEach(function (b) {
-        toggle(b, 'data-follow', 'data-unfollow', [b.dataset.labelOff || 'Suivre', b.dataset.labelOn || 'Suivi']);
-    });
-
-    document.querySelectorAll('[data-forum-moderate] button[data-confirm]').forEach(function (b) {
-        b.addEventListener('click', function (e) {
-            if (!window.confirm(b.getAttribute('data-confirm'))) e.preventDefault();
-        });
-    });
-
     var tools = [
         ['fa-bold', 'Gras', '**', '**'],
         ['fa-italic', 'Italique', '_', '_'],
@@ -53,7 +56,7 @@
         ['fa-list-ul', 'Liste', '- ', '']
     ];
 
-    document.querySelectorAll('textarea[data-forum-editor]').forEach(function (area) {
+    function editor(area) {
         var bar = document.createElement('div');
         bar.className = 'forum-editor-bar';
         tools.forEach(function (t) {
@@ -72,5 +75,54 @@
             bar.appendChild(b);
         });
         area.parentNode.insertBefore(bar, area);
+    }
+
+    // Everything not yet taken care of, each once.
+    function each(selector, fn) {
+        document.querySelectorAll(selector).forEach(function (el) {
+            if (BOUND in el.dataset) return;
+            el.dataset[BOUND] = '';
+            fn(el);
+        });
+    }
+    function scan() {
+        each('[data-forum-like]', function (b) {
+            toggle(b, 'data-like', 'data-unlike', [b.dataset.labelOff || "J'aime", b.dataset.labelOn || 'Aimé']);
+        });
+        each('[data-forum-follow]', function (b) {
+            toggle(b, 'data-follow', 'data-unfollow', [b.dataset.labelOff || 'Suivre', b.dataset.labelOn || 'Suivi']);
+        });
+        each('textarea[data-forum-editor]', editor);
+    }
+
+    // On the document, once: the buttons a topic's stream adds later and a page
+    // swapped in carry these too.
+    document.addEventListener('click', function (e) {
+        var b = e.target && e.target.closest ? e.target.closest('[data-forum-moderate] button[data-confirm]') : null;
+        if (b && !window.confirm(b.getAttribute('data-confirm'))) e.preventDefault();
     });
+
+    // "Sauter vers", at the foot of a topic (topic/show.html.twig): the
+    // chosen board's address is the option's value.
+    document.addEventListener('submit', function (e) {
+        var form = e.target && e.target.closest ? e.target.closest('[data-forum-jump]') : null;
+        if (!form) return;
+        var select = form.querySelector('select');
+        if (!select || !select.value) return;
+        e.preventDefault();
+        window.location.href = select.value;
+    }, true);
+
+    var queued = false;
+    function soon() {
+        if (queued) return;
+        queued = true;
+        requestAnimationFrame(function () { queued = false; scan(); });
+    }
+    function watch() {
+        scan();
+        new MutationObserver(soon).observe(document.body, { childList: true, subtree: true });
+    }
+    window.ForumBehaviours = { scan: soon };
+    if (document.body) watch(); else document.addEventListener('DOMContentLoaded', watch, { once: true });
 })();

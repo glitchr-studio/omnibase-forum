@@ -24,6 +24,8 @@
 {% set node = node ?? null %}
 {% set current_page = current_page ?? 1 %}
 {% set outline_index = outline_index ?? {} %}
+{# The 2005 look (topic/show.html.twig's `retro`): the member drawn large with the day under, a subject line on every message. #}
+{% set retro = retro ?? true %}
 
 {# A link to another post of the topic, on whichever page it is. #}
 {% macro href(entry, topic, current_page) -%}
@@ -31,10 +33,16 @@
 {%- endmacro %}
 
 <li class="forum-post{{ post.isFirst ? ' is-first' }}{{ post.deleted ? ' is-deleted' }}{{ node and node.branch ? ' is-branch' }}" id="post-{{ post.id }}">
+    {# The 2005 column: the member, their name in the rank's colour, the day and the hour under it. #}
     <aside class="forum-post-author">
-        {% include '@Forum/client/_avatar.html.twig' with {user: post.author, size: 'md'} %}
+        {# The large box in both styles: the 2005 square is what a member is
+           drawn in (a site whose members are art shows a whole figure in it,
+           not a head in a disc), and the cards were showing a smaller one. #}
+        {% include '@Forum/client/_avatar.html.twig' with {user: post.author, size: 'lg'} %}
         <div class="forum-post-author-name">{% include '@Forum/client/_member.html.twig' with {user: post.author} %}</div>
-        {% if post.author and post.author.level is defined %}
+        {% if retro %}
+            <time class="forum-post-when" datetime="{{ post.createdAt|date('c') }}">{{ post.createdAt|datetime('d MMMM yyyy') }}<br>{{ post.createdAt|datetime('HH:mm') }}</time>
+        {% elseif post.author and post.author.level is defined %}
             <div class="forum-post-author-level">{{ '@forum.member.level'|trans({'%level%': post.author.level}) }}</div>
         {% endif %}
     </aside>
@@ -42,8 +50,12 @@
     <div class="forum-post-body">
         <header class="forum-post-head">
             <a class="forum-post-minipost" href="#post-{{ post.id }}" title="{{ '@forum.post.permalink'|trans }}" aria-label="{{ '@forum.post.permalink'|trans }}">{{ ui.icon('minipost', 'message', has_icons) }}</a>
+            {% if retro %}
+                {# The subject line every message had in 2005: the topic's title, "Re:" on the replies. #}
+                <a class="forum-post-subject" href="#post-{{ post.id }}">{{ post.isFirst ? topic.title : '@forum.post.re'|trans({title: topic.title}) }}</a>
+            {% endif %}
             <a class="forum-post-number" href="#post-{{ post.id }}">#{{ node ? node.number : post.number }}</a>
-            <time datetime="{{ post.createdAt|date('c') }}">{{ post.createdAt|datetime('d MMMM yyyy, HH:mm') }}</time>
+            {% if not retro %}<time datetime="{{ post.createdAt|date('c') }}">{{ post.createdAt|datetime('d MMMM yyyy, HH:mm') }}</time>{% endif %}
 
             {# "en réponse à": only where the post leaves the trunk - the trunk simply follows on. #}
             {% if node %}
@@ -63,6 +75,10 @@
                 {% if can_reply %}
                     <a class="forum-post-tool" href="{{ path('forum_topic', {slug: topic.slug, quote: post.id}) }}#reply" title="{{ '@forum.post.quote'|trans }}" aria-label="{{ '@forum.post.quote'|trans }}">{{ ui.icon('quote', 'quote-left', has_icons) }}</a>
                     <a class="forum-post-tool" href="{{ path('forum_topic', {slug: topic.slug, reply: post.id}) }}#reply" title="{{ '@forum.post.branch'|trans }}" aria-label="{{ '@forum.post.branch'|trans }}">{{ ui.icon('branch', 'code-branch', has_icons) }}</a>
+                {% endif %}
+                {# A new topic out of this message, when the talk wanders off (Discourse's "reply as linked topic"). #}
+                {% if not post.deleted and topic.category and is_granted('FORUM_POST', topic.category) %}
+                    <a class="forum-post-tool" href="{{ path('forum_topic_new', {category: topic.category.slug, depuis: post.id}) }}" title="{{ '@forum.post.linked_topic'|trans }}" aria-label="{{ '@forum.post.linked_topic'|trans }}">{{ ui.icon('linked_topic', 'square-plus', has_icons) }}</a>
                 {% endif %}
                 {% if can_edit and not post.deleted %}
                     <a class="forum-post-tool" href="{{ path('forum_post_edit', {id: post.id}) }}" title="{{ '@forum.post.edit'|trans }}" aria-label="{{ '@forum.post.edit'|trans }}">{{ ui.icon('edit', 'pen', has_icons) }}</a>

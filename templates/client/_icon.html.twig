@@ -13,7 +13,7 @@
     latest_reply: 'fa-solid fa-envelope-open-text', newest_reply: 'fa-solid fa-arrow-right-to-bracket', minipost: 'fa-regular fa-envelope',
     minipost_new: 'fa-solid fa-envelope', quote: 'fa-solid fa-quote-left', edit: 'fa-solid fa-pen', delete: 'fa-solid fa-xmark',
     reply: 'fa-solid fa-reply', branch: 'fa-solid fa-code-branch', cat_open: 'fa-solid fa-caret-right', cat_close: 'fa-solid fa-caret-down',
-    lock: 'fa-solid fa-lock', sticky: 'fa-solid fa-thumbtack',
+    lock: 'fa-solid fa-lock', sticky: 'fa-solid fa-thumbtack', linked_topic: 'fa-solid fa-square-plus',
 } %}
 {% set title = title|default('') %}
 <i class="forum-icon forum-icon-{{ name }} {{ icons[name]|default('fa-solid fa-circle') }}"{% if size is defined and size %} style="font-size: {{ size }}px"{% endif %}{% if title %} title="{{ title }}" role="img" aria-label="{{ title }}"{% else %} aria-hidden="true"{% endif %}></i>

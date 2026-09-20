@@ -39,54 +39,70 @@
     {% endif %}
 
     <section class="forum-feed">
-        <h2 class="forum-section-title"><i class="fa-solid fa-bolt"></i> {{ '@forum.fil.latest'|trans }}</h2>
+        {# The title and the boards' chips on a panel of their own, as the
+           board's head is on its page (.forum-board-head): drawn bare, they
+           sat on whatever the site paints its page with - on a blue page the
+           title was blue on blue and the chips floated with nothing to hold
+           them. #}
+        <div class="forum-feed-head">
+            <div class="forum-feed-headline">
+                <h2 class="forum-section-title"><i class="fa-solid fa-bolt"></i> {{ (sort|default('recent') == 'populaire' ? '@forum.fil.trending' : '@forum.fil.latest')|trans }}</h2>
 
-        {# The boards as filter chips, each leading to its own list. #}
-        <nav class="forum-chips" aria-label="{{ '@forum.list.board'|trans }}">
-            {% for group in groups %}
-                {% for board in group.children|filter(b => is_granted('FORUM_READ', b)) %}
-                    <a class="forum-chip" href="{{ path('forum_category', {slug: board.slug}) }}" style="{{ (board.color ?: group.color) ? '--cat:' ~ (board.color ?: group.color) : '' }}">{{ board.title }}</a>
+                {# The order the feed is in - see ForumController::SORTS. #}
+                <nav class="forum-sorts" role="group" aria-label="{{ '@forum.fil.sort'|trans }}">
+                    <a class="forum-sort{{ sort|default('recent') != 'populaire' ? ' is-active' }}" href="{{ path('forum_index', {vue: 'fil'}) }}"{{ sort|default('recent') != 'populaire' ? ' aria-current="page"' }}><i class="fa-solid fa-bolt"></i> {{ '@forum.fil.sort_recent'|trans }}</a>
+                    <a class="forum-sort{{ sort|default('recent') == 'populaire' ? ' is-active' }}" href="{{ path('forum_index', {vue: 'fil', tri: 'populaire'}) }}"{{ sort|default('recent') == 'populaire' ? ' aria-current="page"' }}><i class="fa-solid fa-fire"></i> {{ '@forum.fil.sort_trending'|trans }}</a>
+                </nav>
+            </div>
+
+            {# The boards as filter chips, each leading to its own list. #}
+            <nav class="forum-chips" aria-label="{{ '@forum.list.board'|trans }}">
+                {% for group in groups %}
+                    {% for board in group.children|filter(b => is_granted('FORUM_READ', b)) %}
+                        <a class="forum-chip" href="{{ path('forum_category', {slug: board.slug}) }}" style="{{ (board.color ?: group.color) ? '--cat:' ~ (board.color ?: group.color) : '' }}">{{ board.title }}</a>
+                    {% endfor %}
                 {% endfor %}
-            {% endfor %}
-        </nav>
+            </nav>
+        </div>
 
         {% if latest|length == 0 %}
             <p class="forum-empty">{{ '@forum.list.empty'|trans }}</p>
         {% else %}
-        <ol class="forum-feed-list">
+        {#
+         # The feed reads as one list, Discourse's way: forum-feed.js adds the
+         # next pages as the reader nears the end - and, on a page opened past
+         # the first, the pages before it above - and the pager steps aside.
+         # It stays for a reader without the script, and for the search engines.
+         #}
+        <ol class="forum-feed-list" data-forum-feed data-page="{{ latest.page }}" data-pages="{{ max(latest.totalPages, 1) }}"
+            data-url="{{ path('forum_index', {vue: 'fil', tri: sort|default('recent') == 'populaire' ? 'populaire' : null}) }}"
+            data-loading="{{ '@forum.stream.loading'|trans }}" data-failed="{{ '@forum.stream.failed'|trans }}">
             {% for topic in latest %}
-            {% set at = topic.activityAt %}
-            <li class="forum-feed-row{{ topic.pinned ? ' is-pinned' }}{{ topic.locked ? ' is-locked' }}">
-                <div class="forum-feed-avatars">
-                    {% include '@Forum/client/_avatar.html.twig' with {user: topic.author, size: 'sm'} %}
-                    {% if topic.lastPoster and topic.lastPoster != topic.author %}
-                        {% include '@Forum/client/_avatar.html.twig' with {user: topic.lastPoster, size: 'sm'} %}
-                    {% endif %}
-                </div>
-                <div class="forum-feed-main">
-                    <a class="forum-topic-title" href="{{ path('forum_topic', {slug: topic.slug}) }}">
-                        {# No folder badge in the feed: the state is one small icon before the title. #}
-                        {% if topic.pinned %}{% include '@Forum/client/_icon.html.twig' with {name: 'sticky', title: '@forum.topic.pinned'|trans} %}{% elseif topic.locked %}{% include '@Forum/client/_icon.html.twig' with {name: 'lock', title: '@forum.topic.locked'|trans} %}{% endif %}
-                        {{ topic.title }}
-                    </a>
-                    <div class="forum-topic-meta">
-                        {% if topic.category %}
-                        <a class="forum-cat-badge" href="{{ path('forum_category', {slug: topic.category.slug}) }}" style="{{ topic.category.color ? '--cat:' ~ topic.category.color : '' }}"><span class="forum-cat-dot"></span>{{ topic.category.title }}</a>
-                        {% endif %}
-                        {% for tag in topic.tags %}
-                            <a class="forum-tag forum-tag-sm" href="{{ path('forum_tag', {slug: tag.slug}) }}" style="{{ tag.color ? '--tag:' ~ tag.color : '' }}">{{ tag }}</a>
-                        {% endfor %}
-                    </div>
-                </div>
-                <div class="forum-feed-num" title="{{ '@forum.list.replies'|trans }}"><b>{{ topic.replies }}</b><span>{{ '@forum.list.replies'|trans }}</span></div>
-                <div class="forum-feed-num" title="{{ '@forum.list.views'|trans }}"><b>{{ topic.views }}</b><span>{{ '@forum.list.views'|trans }}</span></div>
-                <div class="forum-feed-when">
-                    <time datetime="{{ at ? at|date('c') : '' }}" title="{{ at ? at|datetime('d MMMM yyyy, HH:mm') : '' }}">{{ at ? at|datetime('d MMM') : '' }}</time>
-                </div>
-            </li>
+                {% include '@Forum/client/_feed_row.html.twig' with {topic: topic, page: latest.page} %}
             {% endfor %}
         </ol>
-        {% include '@Forum/client/_pager.html.twig' with {pagination: latest, route: 'forum_index', params: {vue: 'fil'}} %}
+        {% include '@Forum/client/_pager.html.twig' with {pagination: latest, route: 'forum_index', params: {vue: 'fil', tri: sort|default('recent') == 'populaire' ? 'populaire' : null}} %}
         {% endif %}
     </section>
+{% endblock %}
+
+{% block javascripts %}
+    {{ parent() }}
+    <script src="{{ asset('bundles/forum/js/forum-feed.js') }}" defer></script>
+{% endblock %}
+
+{#
+ # The boxes go under the page, not beside it. A list of discussions is wide -
+ # a title, its board, two counters and a date - and the column beside it took
+ # a fifth of that width for three boxes that are read once, leaving the feed
+ # squeezed and its head, its rows and the shelf under them ending on three
+ # different lines. Shelved, they read as a footer across the page, and the
+ # feed has the room; the layout draws no empty column (forum.css).
+ #}
+{% block forum_side %}{% endblock %}
+
+{% block forum_footer %}
+<div class="forum-shelf">
+    {% include '@Forum/client/_aside.html.twig' with {boxes: ['help', 'new', 'tags'], tags: tags|default([])} %}
+</div>
 {% endblock %}

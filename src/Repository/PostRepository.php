@@ -27,8 +27,8 @@ class PostRepository extends ServiceEntityRepository
 
     /**
      * The whole topic, light: one scalar row per post, in reading order, for
-     * the timeline and the message tree (TopicController::outline()). No
-     * content, no entities - a topic of a thousand posts stays cheap.
+     * the timeline and the posts' own hierarchy (TopicController::outline()).
+     * No content, no entities - a topic of a thousand posts stays cheap.
      *
      * @return list<array{id: int, at: \DateTimeInterface, replyTo: ?int, deletedAt: ?\DateTimeInterface, authorId: ?int, author: ?string}>
      */

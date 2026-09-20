@@ -1,4 +1,12 @@
-{# The right-hand column: what to know first, a call to write, then the tag cloud. #}
+{#
+ # The right-hand column: what to know first, a call to write, then the tag
+ # cloud. `boxes` says which of the three to draw, in case a view wants them
+ # in two places - the feed keeps the help beside it and shelves the other
+ # two under the page (index_fil.html.twig).
+ #}
+{% set boxes = boxes|default(['help', 'new', 'tags']) %}
+
+{% if 'help' in boxes %}
 <div class="forum-box forum-box-help">
     <div class="forum-box-title"><i class="fa-solid fa-circle-question"></i> {{ '@forum.aside.help'|trans }}</div>
     <div class="forum-box-body">
@@ -7,7 +15,9 @@
         <p>{{ '@forum.aside.help_mention'|trans|raw }}</p>
     </div>
 </div>
+{% endif %}
 
+{% if 'new' in boxes %}
 <div class="forum-box forum-box-new">
     <div class="forum-box-title"><i class="fa-solid fa-pen-nib"></i> {{ '@forum.aside.write'|trans }}</div>
     <div class="forum-box-body">
@@ -20,8 +30,9 @@
         {% endif %}
     </div>
 </div>
+{% endif %}
 
-{% if tags is defined and tags|length %}
+{% if 'tags' in boxes and tags is defined and tags|length %}
 <div class="forum-box forum-box-tags">
     <div class="forum-box-title"><i class="fa-solid fa-tags"></i> {{ '@forum.aside.tags'|trans }}</div>
     <div class="forum-box-body forum-tagcloud">

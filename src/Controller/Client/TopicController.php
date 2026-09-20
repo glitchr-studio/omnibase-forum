@@ -31,6 +31,21 @@ use Symfony\Contracts\Translation\TranslatorInterface;
  */
 class TopicController extends AbstractController
 {
+    /**
+     * A topic's two looks: the messages as separate cards, or the 2005
+     * board's one box with its rows (topic/show.html.twig). Chosen with
+     * ?style=, remembered per browser in STYLE_COOKIE.
+     */
+    public const STYLES = ['retro', 'cartes'];
+    public const STYLE_COOKIE = 'FORUM/TOPIC';
+
+    /**
+     * Asked by forum-thread.js for one more page of a topic being read as a
+     * single stream (Discourse's way): the page's posts alone, and the
+     * reading is not counted again.
+     */
+    public const STREAM_HEADER = 'X-Forum-Stream';
+
     private readonly TopicRepository $topics;
     private readonly PostRepository $posts;
     private readonly CategoryRepository $categories;
@@ -61,6 +76,26 @@ class TopicController extends AbstractController
             $model->category = $this->categories->findOneBySlug($category);
         }
 
+        /*
+         * A new topic out of a message (?depuis=<post id>), Discourse's "reply
+         * as linked topic": when a message takes the conversation somewhere
+         * else, it gets a topic of its own, on the same board unless another
+         * is chosen, opening with a link back to where it started.
+         */
+        $source = null;
+        if ($from = $request->query->getInt('depuis')) {
+            $post = $this->posts->find($from);
+            if ($post && !$post->isDeleted() && $post->getTopic() && $this->isGranted(ForumVoter::READ, $post->getTopic())) {
+                $source = $post;
+                $model->category ??= $post->getTopic()->getCategory();
+                $model->content = $this->translator->trans('@forum.topic.linked_opening', [
+                    'title' => $post->getTopic()->getTitle(),
+                    'number' => $post->getNumber(),
+                    'url' => $this->postUrl($post),
+                ]) . "\n\n";
+            }
+        }
+
         $form = $this->createForm(TopicType::class, $model);
         $form->handleRequest($request);
 
@@ -89,6 +124,8 @@ class TopicController extends AbstractController
         return $this->render('@Forum/client/topic/new.html.twig', [
             'form' => $form->createView(),
             'category' => $model->category,
+            'source' => $source,
+            'source_url' => $source ? $this->postUrl($source) : null,
         ]);
     }
 
@@ -104,14 +141,29 @@ class TopicController extends AbstractController
 
         $page = $request->query->getInt('page', 1);
         $posts = $this->paginator->paginate($this->posts->createTopicQuery($topic), $page, $this->postsPerPage);
+        $stream = $request->headers->has(self::STREAM_HEADER);
 
         // Readers count, authors do not: a member re-reading their own topic
-        // is not an audience.
-        if ($this->getUser() !== $topic->getAuthor()) {
+        // is not an audience. Nor is a page the stream loads as they scroll.
+        if (!$stream && $this->getUser() !== $topic->getAuthor()) {
             $this->topics->incrementViews($topic);
         }
 
         [$outline, $outlineIndex] = $this->outline($topic);
+
+        if ($stream) {
+            $style = (string) $request->cookies->get(self::STYLE_COOKIE, self::STYLES[0]);
+            $response = $this->render('@Forum/client/topic/_stream.html.twig', [
+                'topic' => $topic,
+                'posts' => $posts,
+                'outline_index' => $outlineIndex,
+                'retro' => 'cartes' !== $style,
+            ]);
+            $response->setVary(self::STREAM_HEADER, false);
+            $response->setPrivate();
+
+            return $response;
+        }
 
         $reply = null;
         if ($this->isGranted(ForumVoter::REPLY, $topic)) {
@@ -133,17 +185,35 @@ class TopicController extends AbstractController
             ])->createView();
         }
 
-        return $this->render('@Forum/client/topic/show.html.twig', [
+        // The style asked for (?style=), or the one this browser last chose.
+        $asked = (string) $request->query->get('style', '');
+        $style = in_array($asked, self::STYLES, true) ? $asked : (string) $request->cookies->get(self::STYLE_COOKIE, self::STYLES[0]);
+        if (!in_array($style, self::STYLES, true)) {
+            $style = self::STYLES[0];
+        }
+
+        $response = $this->render('@Forum/client/topic/show.html.twig', [
+            'topic_style' => $style,
             'topic' => $topic,
             'posts' => $posts,
             'outline' => $outline,
             'outline_index' => $outlineIndex,
             'topic_previous' => $this->neighbour($topic, false),
             'topic_next' => $this->neighbour($topic, true),
+            'jump_boards' => $this->jumpBoards(),
             'reply' => $reply,
             'is_following' => $this->getUser() && $topic->getFollowers()->contains($this->getUser()),
             'is_liked' => $this->getUser() && $topic->isLiked($this->getUser()),
         ]);
+
+        if ($asked === $style) {
+            $response->headers->setCookie(\Symfony\Component\HttpFoundation\Cookie::create(self::STYLE_COOKIE, $style, new \DateTimeImmutable('+1 year'), '/', null, $request->isSecure(), true, false, 'lax'));
+        }
+        // The same address answers the stream with a fragment: a cache must
+        // not hand one for the other.
+        $response->setVary(self::STREAM_HEADER, false);
+
+        return $response;
     }
 
     #[Route('/bbs/{slug}/repondre', name: 'forum_topic_reply', methods: ['POST'])]
@@ -340,8 +410,9 @@ class TopicController extends AbstractController
     }
 
     /**
-     * The whole topic as a tree, from one light query, for the timeline and
-     * the "Arbre à messages" (public/js/forum-thread.js).
+     * The whole topic as a tree, from one light query: the timeline
+     * (public/js/forum-thread.js), and the hierarchy the posts are read with -
+     * the "en réponse à" line, the branch's indent, the ">>n" links.
      *
      * A post's parent is the message it answers (replyTo). A post answering
      * nothing continues the trunk - and so does one answering the trunk's
@@ -413,6 +484,26 @@ class TopicController extends AbstractController
     }
 
     /** The topic before or after this one on its board - 2004's "« Sujet précédent / Sujet suivant »". */
+
+    /**
+     * The boards the reader may read, by group: the "Sauter vers" at the
+     * foot of a topic (topic/show.html.twig).
+     *
+     * @return array<string, list<Category>>
+     */
+    private function jumpBoards(): array
+    {
+        $boards = [];
+        foreach ($this->categories->findTree() as $group) {
+            foreach ($group->getChildren() as $board) {
+                if ($this->isGranted(ForumVoter::READ, $board)) {
+                    $boards[$group->getTitle()][] = $board;
+                }
+            }
+        }
+
+        return $boards;
+    }
     private function neighbour(Topic $topic, bool $next): ?Topic
     {
         return $this->topics->createQueryBuilder('t')
@@ -438,6 +529,20 @@ class TopicController extends AbstractController
         $elapsed = time() - $last->getCreatedAt()->getTimestamp();
 
         return max(0, $this->floodInterval - $elapsed);
+    }
+
+    /**
+     * A message's address: its topic, at the page it is on, at the message.
+     * The page is added by hand: the router's own query string came out as
+     * "/bbs/un-sujet/?page=3", a different address from the one every link
+     * of the topic writes.
+     */
+    private function postUrl(Post $post): string
+    {
+        $page = $this->posts->findPageOf($post, $this->postsPerPage);
+
+        return rtrim($this->generateUrl('forum_topic', ['slug' => $post->getTopic()->getSlug()]), '/')
+            . ($page > 1 ? '?page=' . $page : '') . '#post-' . $post->getId();
     }
 
     private function redirectToPost(Post $post): Response

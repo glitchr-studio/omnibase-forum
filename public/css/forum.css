@@ -85,24 +85,40 @@
 .forum-topic-last { font-size: 11px; }
 .forum-empty { padding: 2rem; text-align: center; color: var(--forum-muted); background: #fff; border: 1px dashed var(--forum-line); border-radius: var(--forum-radius); }
 
-.forum-tag { display: inline-block; padding: .1rem .55rem; border-radius: 999px; font-size: 12px; font-weight: bold; color: #fff; background: var(--tag, var(--forum-blue)); }
-.forum-tag:hover { color: #fff; background: var(--forum-pink); text-decoration: none; }
+/*
+ * A tag's colour, darkened a step under white text: the page blue (#6090BE)
+ * bare gave 3.3:1 at 11px bold, and the label read dim.
+ *
+ * Written `.forum a.forum-tag` as well as `.forum-tag`: a tag is a link, and
+ * `.forum a { color: … }` above is one class and one type - more specific
+ * than a lone class. The white was losing to it, and the label came out in
+ * the link blue on the tag's dark blue, near unreadable. Same for the
+ * category badge, which was drawing every board in the link blue instead of
+ * its own colour.
+ */
+.forum-tag, .forum a.forum-tag { display: inline-block; padding: .1rem .55rem; border-radius: 999px; font-size: 12px; font-weight: bold; color: #fff; background: color-mix(in srgb, var(--tag, var(--forum-blue)) 78%, #000); }
+.forum-tag:hover, .forum a.forum-tag:hover { color: #fff; background: var(--forum-pink); text-decoration: none; }
 .forum-tag-sm { font-size: 11px; padding: 0 .45rem; }
 .forum-tag-count { opacity: .75; font-weight: normal; margin-left: .2rem; }
 .forum-tagcloud { display: flex; flex-wrap: wrap; gap: .35rem; }
-.forum-cat-badge { display: inline-flex; gap: .35rem; align-items: center; font-size: 12px; font-weight: bold; color: var(--cat, var(--forum-blue-dark)); }
+.forum-cat-badge, .forum a.forum-cat-badge { display: inline-flex; gap: .35rem; align-items: center; font-size: 12px; font-weight: bold; color: var(--cat, var(--forum-blue-dark)); }
 
 /* ── avatars & members ────────────────────────────────────────────────── */
 .forum-avatar { display: inline-grid; place-items: center; flex: none; border-radius: 50%; overflow: hidden; background: var(--forum-blue-pale); color: var(--forum-blue); font-weight: bold; }
 .forum-avatar-sm { width: 32px; height: 32px; font-size: 14px; }
 .forum-avatar-md { width: 64px; height: 64px; font-size: 24px; }
+/* The member beside their message: a square, not a disc, and big enough to
+   show a whole figure where a site draws its members (chapaland's chibi sits
+   on the boards). Both styles use it - see _post.html.twig. */
+.forum-avatar-lg { --forum-avatar-w: 124px; --forum-avatar-h: 118px; width: var(--forum-avatar-w); height: var(--forum-avatar-h); border-radius: 12px; font-size: 32px; }
 .forum-avatar img { width: 100%; height: 100%; object-fit: cover; }
 .forum-member { font-weight: bold; }
 .forum-member-gone { color: var(--forum-muted); font-style: italic; }
 
 /* ── topic page ───────────────────────────────────────────────────────── */
-.forum-topic-head { padding: 1rem 1.25rem; margin-bottom: 1rem; background: #fff; border: 1px solid var(--forum-line); border-radius: var(--forum-radius); }
-.forum-topic-heading { margin: 0 0 .4rem; font-size: 22px; line-height: 1.2; }
+/* The title over the box, as the 2005 board set it: big, bold, pink. */
+.forum-topic-head { margin-bottom: .9rem; }
+.forum-topic-heading { margin: 0 0 .4rem; font: bold 24px/1.15 Verdana, sans-serif; color: var(--forum-pink); }
 .forum-topic-heading i { color: var(--forum-pink); font-size: 14px; }
 .forum-topic-stats { color: var(--forum-muted); }
 .forum-topic-stats i { margin-left: .6rem; }
@@ -110,16 +126,23 @@
 .forum-moderate { display: contents; }
 
 .forum-posts { list-style: none; margin: 0; padding: 0; }
-.forum-post { display: grid; grid-template-columns: 110px 1fr; gap: 1rem; margin-bottom: .8rem; background: #fff; border: 1px solid var(--forum-line); border-radius: var(--forum-radius); overflow: hidden; scroll-margin-top: 1rem; }
-.forum-post.is-first { border-color: var(--forum-blue); }
+/* The 2005 box holds the messages: one white box, a bar on top, the
+   messages as rows under a thin rule, "Page n/N" at the foot. */
+.forum-topic-box { margin-bottom: .9rem; background: #fff; border: 1px solid var(--forum-line); border-radius: var(--forum-radius); overflow: hidden; }
+.forum-topic-nav { display: flex; justify-content: space-between; gap: 1rem; padding: .55rem 1rem; background: var(--forum-blue-panel); border-bottom: 1px solid var(--forum-line); font-size: 13px; font-weight: bold; }
+.forum-topic-pagecount { margin: 0; padding: .7rem 1rem; border-top: 1px solid var(--forum-line); text-align: center; font-size: 13px; }
+.forum-post { display: grid; grid-template-columns: 10.5rem 1fr; gap: 1rem; margin: 0; border-top: 1px solid var(--forum-line); scroll-margin-top: 1rem; }
+.forum-post:first-child { border-top: 0; }
 /* A post is rung when the address points at it (:target) and when the reader
    was scrolled to it without a navigation (forum-thread.js sets is-target:
    replaceState never fires :target). The focus that comes with it is for
    screen readers and keyboards; the ring already says where we landed. */
-.forum-post:target, .forum-post.is-target { box-shadow: 0 0 0 3px var(--forum-pink); }
+.forum-post:target, .forum-post.is-target { box-shadow: inset 0 0 0 3px var(--forum-pink); }
 .forum-post.is-target:focus, .forum-post:target:focus { outline: none; }
-.forum-post-author { display: flex; flex-direction: column; align-items: center; gap: .35rem; padding: 1rem .5rem; background: var(--forum-blue-pale); text-align: center; font-size: 12px; }
-.forum-post-author-level { color: var(--forum-muted); }
+.forum-post-author { display: flex; flex-direction: column; align-items: center; gap: .35rem; padding: 1.5rem .5rem 1rem; text-align: center; font-size: 12px; }
+.forum-post-when { display: block; color: var(--forum-muted); line-height: 1.35; }
+.forum-post-subject { font-weight: bold; color: var(--forum-text); }
+.forum a.forum-post-subject:hover { color: var(--forum-orange); }
 .forum-post-body { display: flex; flex-direction: column; min-width: 0; }
 .forum-post-head { display: flex; flex-wrap: wrap; gap: .8rem; align-items: baseline; padding: .6rem 1rem 0; font-size: 12px; color: var(--forum-muted); }
 .forum-post-number { font-weight: bold; color: var(--forum-pink); }
@@ -136,6 +159,28 @@
 .forum-post-deleted { color: var(--forum-muted); font-style: italic; }
 .forum-post.is-deleted { opacity: .8; }
 .forum-post-actions { display: flex; gap: .3rem; padding: 0 .6rem .5rem; justify-content: flex-end; }
+/* Under the box: "nouveau sujet", "sujet bloqué"; at the foot, "Sauter vers".
+   A badge is a pill by default; a site's art (_badge.html.twig) wears
+   .forum-badge-art and draws itself. */
+.forum-topic-badges { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; margin: 0 0 .9rem .25rem; }
+.forum-topic-badges:empty { display: none; }
+.forum-badge { display: inline-flex; align-items: center; gap: .4rem; padding: .3rem .8rem; border: 1px solid var(--forum-line); border-radius: 999px; background: var(--forum-blue-pale); color: var(--forum-blue-dark); font: bold 12px Verdana, sans-serif; cursor: pointer; }
+.forum a.forum-badge:hover, button.forum-badge:hover { color: var(--forum-pink); text-decoration: none; }
+.forum-badge-art, .forum .forum-badge-art { padding: 0; border: 0; border-radius: 0; background: none; }
+.forum-badge img { display: block; }
+.forum-jump { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: .6rem; margin: .9rem 0; padding: .7rem 1rem; background: #fff; border: 1px solid var(--forum-line); border-radius: var(--forum-radius); font-size: 13px; }
+.forum-jump select { min-width: 14rem; padding: .3rem .5rem; font: inherit; color: var(--forum-text); background: #fff; border: 1px solid var(--forum-line); border-radius: 6px; }
+
+/* ── the other style: the messages as cards (TopicController::STYLES) ── */
+.forum-topic.is-style-cartes .forum-topic-head { padding: 1rem 1.25rem; margin-bottom: 1rem; background: #fff; border: 1px solid var(--forum-line); border-radius: var(--forum-radius); }
+.forum-topic.is-style-cartes .forum-topic-heading { font: bold 22px/1.2 inherit; font-family: inherit; color: inherit; }
+.forum-topic.is-style-cartes .forum-topic-box { margin: 0; background: none; border: 0; border-radius: 0; overflow: visible; }
+.forum-topic.is-style-cartes .forum-topic-nav { margin: 0 0 .8rem; padding: 0; background: none; border: 0; font-size: 12px; }
+.forum-topic.is-style-cartes .forum-post { grid-template-columns: 10.5rem 1fr; margin-bottom: .8rem; background: #fff; border: 1px solid var(--forum-line); border-radius: var(--forum-radius); overflow: hidden; }
+.forum-topic.is-style-cartes .forum-post.is-first { border-color: var(--forum-blue); }
+.forum-topic.is-style-cartes .forum-post:target, .forum-topic.is-style-cartes .forum-post.is-target { box-shadow: 0 0 0 3px var(--forum-pink); }
+.forum-topic.is-style-cartes .forum-post-author { padding: 1rem .5rem; background: var(--forum-blue-pale); }
+.forum-topic.is-style-cartes .forum-post-author-level { color: var(--forum-muted); }
 .forum-inline-form { display: inline; }
 .forum-locked-note { padding: 1rem; text-align: center; color: var(--forum-muted); background: var(--forum-blue-pale); border-radius: var(--forum-radius); }
 
@@ -200,7 +245,10 @@
     .forum-topics td.col-topic { grid-column: 1 / -1; border-top: 1px solid var(--forum-line); }
     .forum-topics .col-num { display: none; }
     .forum-post { grid-template-columns: 1fr; }
+    /* The author is a line above the message here, not a column beside it:
+       the big box would take half the screen before a word is read. */
     .forum-post-author { flex-direction: row; justify-content: flex-start; padding: .6rem 1rem; }
+    .forum-post-author .forum-avatar-lg { --forum-avatar-w: 72px; --forum-avatar-h: 68px; font-size: 24px; }
     .forum-board, .forum-group .forum-board { grid-template-columns: 40px minmax(0, 1fr); gap: .3rem .8rem; }
     .forum-board-icon { width: 40px; height: 40px; }
     .forum-board-stats { grid-column: 2; flex-direction: row; gap: .8rem; align-items: baseline; }
@@ -231,7 +279,22 @@
 .forum-postit-board { font-size: 11px; opacity: .75; }
 .forum-postit-meta { margin-top: auto; font-size: 11px; opacity: .8; }
 
-.forum-chips { display: flex; flex-wrap: wrap; gap: .35rem; margin: 0 0 .7rem; }
+/* The feed's head: its title and the boards' chips on the pale panel the
+   board's own head uses, so they read the same on a white page and on a
+   painted one. The title sits on the panel, not above it. */
+/* Its padding is the list rows' own (.forum-feed-row), and the blue edge is
+   drawn inside the panel the way a pinned row's pink one is, rather than as a
+   border that pushes everything in the head 6px further right than the list:
+   the title and the chips start on the line the rows under them start on. */
+.forum-feed-head { padding: .8rem .9rem .9rem; margin: 0 0 1rem; border-radius: var(--forum-radius); background: var(--forum-blue-panel); box-shadow: inset 6px 0 0 var(--forum-blue); }
+.forum-feed-head .forum-section-title { margin: 0; }
+/* The title and the order the feed is in, on one line. */
+.forum-feed-headline { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem 1rem; margin: 0 0 .7rem; }
+.forum-sorts { display: inline-flex; padding: 3px; border-radius: 999px; background: #fff; border: 1px solid var(--forum-line); }
+.forum-sort { display: inline-flex; align-items: center; gap: .3rem; padding: .25rem .75rem; border-radius: 999px; font-size: 12px; font-weight: bold; color: var(--forum-blue-dark); white-space: nowrap; }
+.forum a.forum-sort:hover { text-decoration: none; background: var(--forum-blue-pale); color: var(--forum-blue-dark); }
+.forum a.forum-sort.is-active { background: var(--forum-blue); color: #fff; }
+.forum-chips { display: flex; flex-wrap: wrap; gap: .35rem; margin: 0; }
 .forum a.forum-chip { display: inline-block; padding: .15rem .6rem; border-radius: 999px; font-size: 12px; font-weight: bold; color: var(--cat, var(--forum-blue-dark)); background: #fff; border: 1px solid color-mix(in srgb, var(--cat, var(--forum-blue)) 45%, #fff); }
 .forum a.forum-chip:hover { text-decoration: none; background: color-mix(in srgb, var(--cat, var(--forum-blue)) 12%, #fff); }
 
@@ -268,16 +331,43 @@
 /* The side column follows the page's width instead of holding 15rem come
    what may: on a wide screen it has room for the tag cloud, on a narrow page
    it gives its width back to the boards rather than squeezing them. */
-.forum-page { display: grid; grid-template-columns: minmax(0, 1fr) clamp(12rem, 18%, 17rem); gap: 1.25rem; align-items: start; }
+.forum-page { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1.25rem; align-items: start; }
 .forum-main { min-width: 0; }
 .forum-side { display: flex; flex-direction: column; gap: 1rem; min-width: 0; align-self: stretch; }
 .forum-side .forum-box { margin: 0; }
+/*
+ * The column is only there when there is something to put in it. A view that
+ * shelves all of its boxes under the page (index_fil.html.twig) leaves the
+ * block empty, and an empty column is neither drawn nor reserved: the page
+ * then has the whole width, so its toolbar, the feed's head, the list and
+ * the shelf under them all begin and end on the same two lines.
+ */
+.forum-side:not(:has(> *)) { display: none; }
+.forum-page:has(.forum-side > *) { grid-template-columns: minmax(0, 1fr) clamp(12rem, 18%, 17rem); }
+.forum-shelf { display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: 1rem; align-items: start; margin-top: 1.25rem; }
+.forum-shelf .forum-box { margin: 0; }
+
+/* ── the streams: a topic, the feed and the topic lists read as one (forum-thread.js, forum-feed.js) ── */
+/* The pages come in as the reader scrolls: the numbered pagers only stand in
+   the way, and stay for a reader without the script. */
+.forum-topic.is-streaming .forum-pager, .forum-feed.is-streaming .forum-pager, .forum-list-stream.is-streaming .forum-pager { display: none; }
+.forum-stream-status { margin: 0; padding: .7rem 1rem; text-align: center; font-size: 12px; color: var(--forum-muted, #6d8296); }
+.forum-stream-status::before { content: ""; display: inline-block; width: .75em; height: .75em; margin-right: .5em; vertical-align: -.05em; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: forum-stream-spin .8s linear infinite; }
+.forum-stream-status.is-failed { color: #b3261e; }
+.forum-stream-status.is-failed::before { content: none; }
+@keyframes forum-stream-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .forum-stream-status::before { animation: none; } }
+
+/* A topic started from a message (topic/new.html.twig): where it comes from. */
+.forum-linked-from { margin: .5rem 0 0; font-size: 13px; }
+.forum-linked-from a { font-weight: bold; }
+
 .forum-box-body p { margin: 0; }
 .forum-box-body p + p { margin-top: .4rem; }
 .forum-box-help .forum-box-body { font-size: 12px; color: var(--forum-muted); }
 .forum-box-help code { display: inline-block; padding: 0 .3rem; border-radius: 4px; background: var(--forum-blue-pale); color: var(--forum-blue-dark); font: 11px/1.5 Menlo, Consolas, monospace; white-space: nowrap; }
 @media (max-width: 900px) {
-    .forum-page { grid-template-columns: minmax(0, 1fr); }
+    .forum-page, .forum-page:has(.forum-side > *) { grid-template-columns: minmax(0, 1fr); }
     .forum-side { align-self: auto; }
 }
 

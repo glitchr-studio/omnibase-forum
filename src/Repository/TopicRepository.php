@@ -72,6 +72,32 @@ class TopicRepository extends ThreadRepository
     }
 
     /**
+     * What people are talking about: among the topics that have moved in the
+     * last `days`, the busiest first - replies, then readers, then the most
+     * recently active. The feed's second order (?tri=populaire). Readable
+     * boards only, the caller passing them as for createLatestQuery().
+     *
+     * @param int[]|null $readableCategoryIds
+     */
+    public function createTrendingQuery(?array $readableCategoryIds = null, int $days = 30): Query
+    {
+        $qb = $this->createQueryBuilder('t')
+            ->leftJoin('t.category', 'c')->addSelect('c')
+            ->leftJoin('t.lastPoster', 'lp')->addSelect('lp')
+            ->andWhere('t.lastPostAt >= :since')
+            ->setParameter('since', new \DateTimeImmutable(sprintf('-%d days', $days)))
+            ->orderBy('t.replies', \SortDirection::Descending)
+            ->addOrderBy('t.views', \SortDirection::Descending)
+            ->addOrderBy('t.lastPostAt', \SortDirection::Descending);
+
+        if (null !== $readableCategoryIds) {
+            $qb->andWhere('c.id IN (:ids)')->setParameter('ids', $readableCategoryIds ?: [0]);
+        }
+
+        return $qb->getQuery();
+    }
+
+    /**
      * The pinned topics of the given boards, most recently active first: the
      * post-its of the flat view. Readable boards only - the caller passes
      * them, as for createLatestQuery().

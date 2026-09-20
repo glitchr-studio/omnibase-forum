@@ -1,0 +1,8 @@
+{#
+ # One page of a topic list's rows and nothing else: what forum-feed.js fetches
+ # (TopicController::STREAM_HEADER) to add to a board's, a tag's or a search's
+ # list as the reader scrolls. Variables: topics, show_category.
+ #}
+{% for topic in topics %}
+    {% include '@Forum/client/_topic_row.html.twig' with {topic: topic, show_category: show_category, page: topics.page} %}
+{% endfor %}

@@ -12,9 +12,17 @@
     </section>
 
     {% if topics is not null %}
-        {% include '@Forum/client/_topic_list.html.twig' with {topics: topics, show_category: true} %}
-        {% include '@Forum/client/_pager.html.twig' with {pagination: topics, route: 'forum_search', params: {q: term}} %}
+        {# Read as one list as the reader scrolls (forum-feed.js); the pager stays for a reader without the script. #}
+        <div class="forum-list-stream">
+            {% include '@Forum/client/_topic_list.html.twig' with {topics: topics, show_category: true, stream_url: path('forum_search', {q: term})} %}
+            {% include '@Forum/client/_pager.html.twig' with {pagination: topics, route: 'forum_search', params: {q: term}} %}
+        </div>
     {% elseif term %}
         <p class="forum-empty">{{ '@forum.search.too_short'|trans }}</p>
     {% endif %}
+{% endblock %}
+
+{% block javascripts %}
+    {{ parent() }}
+    <script src="{{ asset('bundles/forum/js/forum-feed.js') }}" defer></script>
 {% endblock %}

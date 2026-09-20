@@ -12,6 +12,10 @@
         <div class="forum-board-head-text">
             <h2><i class="fa-solid fa-pen-nib"></i> {{ '@forum.topic.new'|trans }}</h2>
             <p>{{ '@forum.topic.new_hint'|trans }}</p>
+            {# Started from a message (TopicController::Create, ?depuis=): where it comes from. #}
+            {% if source|default(null) %}
+                <p class="forum-linked-from"><i class="fa-solid fa-diagram-project" aria-hidden="true"></i> {{ '@forum.topic.linked_from'|trans }} <a href="{{ source_url }}">« {{ source.topic.title }} », #{{ source.number }}</a></p>
+            {% endif %}
         </div>
     </section>
 

@@ -19,6 +19,14 @@
         {% endif %}
     </section>
 
-    {% include '@Forum/client/_topic_list.html.twig' with {topics: topics, show_category: false} %}
-    {% include '@Forum/client/_pager.html.twig' with {pagination: topics, route: 'forum_category', params: {slug: category.slug}} %}
+    {# Read as one list as the reader scrolls (forum-feed.js); the pager stays for a reader without the script. #}
+    <div class="forum-list-stream">
+        {% include '@Forum/client/_topic_list.html.twig' with {topics: topics, show_category: false, stream_url: path('forum_category', {slug: category.slug})} %}
+        {% include '@Forum/client/_pager.html.twig' with {pagination: topics, route: 'forum_category', params: {slug: category.slug}} %}
+    </div>
+{% endblock %}
+
+{% block javascripts %}
+    {{ parent() }}
+    <script src="{{ asset('bundles/forum/js/forum-feed.js') }}" defer></script>
 {% endblock %}

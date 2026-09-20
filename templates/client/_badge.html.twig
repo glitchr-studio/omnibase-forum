@@ -1,0 +1,16 @@
+{#
+ # A badge of the 2005 board: "nouveau sujet" and "sujet bloqué" under a
+ # topic's box, and the "go" of the "Sauter vers" form. A pill with an icon
+ # and the title by default; an application draws its own (Chapaland has the
+ # 2005 GIFs) at templates/bundles/ForumBundle/client/_badge.html.twig, with
+ # the same variables:
+ #
+ #   name    new_topic | locked_topic | go
+ #   title   the words on the badge
+ #   href    a link, optional; `button: true` makes it a submit button instead
+ #}
+{% set icons = {new_topic: 'fa-solid fa-plus', locked_topic: 'fa-solid fa-lock', go: 'fa-solid fa-arrow-right'} %}
+{% set inner %}<i class="{{ icons[name]|default('fa-solid fa-circle') }}" aria-hidden="true"></i> <span>{{ title }}</span>{% endset %}
+{% if button|default(false) %}<button type="submit" class="forum-badge forum-badge-{{ name }}">{{ inner }}</button>
+{% elseif href|default(null) %}<a class="forum-badge forum-badge-{{ name }}" href="{{ href }}">{{ inner }}</a>
+{% else %}<span class="forum-badge forum-badge-{{ name }}">{{ inner }}</span>{% endif %}

@@ -32,7 +32,16 @@
         </nav>
         {% endblock %}
 
-        {# The index's two views - see ForumController::VIEWS. Only where there is a view to switch. #}
+        {# A topic's two styles - see TopicController::STYLES: the messages as cards, or the 2005 box. #}
+        {% if topic_style is defined and topic is defined %}
+        {% set page_param = posts is defined and posts.page > 1 ? posts.page : null %}
+        <div class="forum-views" role="group" aria-label="{{ '@forum.style.label'|trans }}">
+            <a class="forum-view{{ topic_style == 'retro' ? ' is-active' }}" href="{{ path('forum_topic', {slug: topic.slug, page: page_param, style: 'retro'}) }}"{{ topic_style == 'retro' ? ' aria-current="page"' }}><i class="fa-solid fa-clock-rotate-left"></i> {{ '@forum.style.retro'|trans }}</a>
+            <a class="forum-view{{ topic_style == 'cartes' ? ' is-active' }}" href="{{ path('forum_topic', {slug: topic.slug, page: page_param, style: 'cartes'}) }}"{{ topic_style == 'cartes' ? ' aria-current="page"' }}><i class="fa-regular fa-clone"></i> {{ '@forum.style.cartes'|trans }}</a>
+        </div>
+        {% endif %}
+
+        {# The index's views - see ForumController::VIEWS. Only where there is a view to switch. #}
         {% if view is defined %}
         <div class="forum-views" role="group" aria-label="{{ '@forum.view.label'|trans }}">
             <a class="forum-view{{ view == 'classique' ? ' is-active' }}" href="{{ path('forum_index', {vue: 'classique'}) }}"{{ view == 'classique' ? ' aria-current="page"' }}><i class="fa-solid fa-table-list"></i> {{ '@forum.view.classique'|trans }}</a>
@@ -52,7 +61,9 @@
     {#
      # The page, then the boxes beside it, both starting on the same line. A
      # page adds to the column with {{ parent() }} in `forum_side` (the topic's
-     # timeline does); nothing above it clips, so a child may be sticky.
+     # timeline does); nothing above it clips, so a child may be sticky. A page
+     # that empties the block - one that shelves its boxes under itself, as the
+     # feed does - gets no column at all and the whole width (forum.css).
      #}
     <div class="forum-page">
         <div class="forum-main">{% block forum_body %}{% endblock %}</div>

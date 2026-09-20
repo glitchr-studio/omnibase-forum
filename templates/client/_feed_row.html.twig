@@ -1,0 +1,36 @@
+{#
+ # One discussion of the feed (index_fil.html.twig): its avatars, title, board
+ # and tags, counters and last activity. Drawn by the page for the page it
+ # opens on, and by the feed's stream (_feed_rows.html.twig) for the pages
+ # forum-feed.js adds as the reader scrolls - the one markup for both.
+ # Variables: topic, page (the list page the row belongs to).
+ #}
+{% set at = topic.activityAt %}
+<li class="forum-feed-row{{ topic.pinned ? ' is-pinned' }}{{ topic.locked ? ' is-locked' }}" data-topic="{{ topic.id }}" data-page="{{ page }}">
+    <div class="forum-feed-avatars">
+        {% include '@Forum/client/_avatar.html.twig' with {user: topic.author, size: 'sm'} %}
+        {% if topic.lastPoster and topic.lastPoster != topic.author %}
+            {% include '@Forum/client/_avatar.html.twig' with {user: topic.lastPoster, size: 'sm'} %}
+        {% endif %}
+    </div>
+    <div class="forum-feed-main">
+        <a class="forum-topic-title" href="{{ path('forum_topic', {slug: topic.slug}) }}">
+            {# No folder badge in the feed: the state is one small icon before the title. #}
+            {% if topic.pinned %}{% include '@Forum/client/_icon.html.twig' with {name: 'sticky', title: '@forum.topic.pinned'|trans} %}{% elseif topic.locked %}{% include '@Forum/client/_icon.html.twig' with {name: 'lock', title: '@forum.topic.locked'|trans} %}{% endif %}
+            {{ topic.title }}
+        </a>
+        <div class="forum-topic-meta">
+            {% if topic.category %}
+            <a class="forum-cat-badge" href="{{ path('forum_category', {slug: topic.category.slug}) }}" style="{{ topic.category.color ? '--cat:' ~ topic.category.color : '' }}"><span class="forum-cat-dot"></span>{{ topic.category.title }}</a>
+            {% endif %}
+            {% for tag in topic.tags %}
+                <a class="forum-tag forum-tag-sm" href="{{ path('forum_tag', {slug: tag.slug}) }}" style="{{ tag.color ? '--tag:' ~ tag.color : '' }}">{{ tag }}</a>
+            {% endfor %}
+        </div>
+    </div>
+    <div class="forum-feed-num" title="{{ '@forum.list.replies'|trans }}"><b>{{ topic.replies }}</b><span>{{ '@forum.list.replies'|trans }}</span></div>
+    <div class="forum-feed-num" title="{{ '@forum.list.views'|trans }}"><b>{{ topic.views }}</b><span>{{ '@forum.list.views'|trans }}</span></div>
+    <div class="forum-feed-when">
+        <time datetime="{{ at ? at|date('c') : '' }}" title="{{ at ? at|datetime('d MMMM yyyy, HH:mm') : '' }}">{{ at ? at|datetime('d MMM') : '' }}</time>
+    </div>
+</li>

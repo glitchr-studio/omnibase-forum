@@ -1,7 +1,7 @@
 /*
  * A topic page's extras (topic/show.html.twig, _post.html.twig,
  * forum-thread.js): the 2004 post header with its icon tools, the
- * Discourse-style timeline in the right column, and the message tree.
+ * Discourse-style timeline in the right column.
  * Colours come from forum.css's custom properties, with fallbacks for a
  * column placed outside .forum.
  */
@@ -26,17 +26,12 @@
 .forum-post-branches { display: inline-flex; align-items: center; gap: .3rem; font-weight: bold; }
 .forum-post.is-branch { border-left: 3px solid color-mix(in srgb, var(--forum-pink, #FF3399) 55%, #fff); }
 .forum-reply-to a { font-weight: bold; }
-.forum-topic-nav { display: flex; justify-content: space-between; margin: 0 0 .8rem; font-size: 12px; font-weight: bold; }
 
 /* ── the timeline ─────────────────────────────────────────────────────── */
 .forum-timeline { --timeline-handle: 2.6rem; position: sticky; top: 1rem; z-index: 5; margin-bottom: 1rem; font-size: 12px; color: var(--forum-muted, #6d8296); }
 .forum-timeline-pill { display: none; }
 /* A card of its own: the column may sit straight on the site's page colour. */
 .forum-timeline-panel { padding: .6rem .7rem .5rem; background: #fff; border: 1px solid var(--forum-line, #D1D7DC); border-radius: var(--forum-radius, 12px); }
-.forum-timeline.is-tree .forum-timeline-panel { padding: .5rem; }
-.forum-timeline-views { display: flex; gap: 2px; margin-bottom: .6rem; padding: 2px; border-radius: 999px; background: #fff; border: 1px solid var(--forum-line, #D1D7DC); }
-.forum-timeline-views button { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: .3rem; padding: .25rem .4rem; border: 0; border-radius: 999px; background: none; font: bold 11px Verdana, sans-serif; color: var(--forum-blue-dark, #006699); cursor: pointer; white-space: nowrap; }
-.forum-timeline-views button[aria-pressed="true"] { background: var(--forum-blue, #6090BE); color: #fff; }
 .forum-timeline-jump { display: inline-flex; align-items: center; gap: .35rem; padding: .15rem 0; border: 0; background: none; font: bold 12px Verdana, sans-serif; color: var(--forum-blue-dark, #006699); cursor: pointer; }
 .forum-timeline-jump:hover { color: var(--forum-orange, #DD6900); }
 .forum-timeline-date { display: block; margin: .3rem 0 0 .9rem; font-size: 11px; }
@@ -52,19 +47,6 @@
 .forum-timeline-where b { font-size: 14px; color: var(--forum-text, #284555); }
 .forum-timeline-where small { font-size: 11px; }
 
-/* ── the message tree ─────────────────────────────────────────────────── */
-.forum-tree { border-radius: var(--forum-radius, 12px); background: linear-gradient(180deg, #F4FBFF, #fff 60%, color-mix(in srgb, #8fc98f 18%, #fff)); border: 1px solid var(--forum-line, #D1D7DC); overflow: hidden; }
-.forum-tree-host { max-height: min(64vh, 34rem); overflow: auto; overscroll-behavior: contain; padding: .25rem; }
-.forum-tree-svg { display: block; margin: 0 auto; max-width: 100%; height: auto; overflow: visible; }
-.forum-tree-bark { fill: var(--forum-tree-bark, #8B6A4E); }
-.forum-tree-node { cursor: pointer; touch-action: none; outline: none; }
-.forum-tree-node circle { fill: var(--leaf); stroke: #fff; stroke-width: 1.5; transition: stroke-width .15s; }
-.forum-tree-node:hover circle, .forum-tree-node:focus-visible circle { stroke: var(--forum-blue-dark, #006699); stroke-width: 2.5; }
-.forum-tree-node.is-deleted circle { fill: #fff; stroke: var(--leaf); stroke-width: 1.5; stroke-dasharray: 2 1.5; }
-.forum-tree-node.is-current circle { stroke: var(--forum-pink, #FF3399); stroke-width: 3; }
-.forum-tree-svg.is-bending, .forum-tree-svg.is-bending .forum-tree-node { cursor: grabbing; }
-.forum-tree-hint { margin: 0; padding: .45rem .7rem .6rem; font-size: 11px; line-height: 1.35; border-top: 1px solid var(--forum-line, #D1D7DC); background: #fff; }
-
 /* ── narrow screens: a floating "n / total" pill opening the panel ────── */
 @media (max-width: 900px) {
     .forum-timeline { position: fixed; top: auto; right: 16px; bottom: 16px; z-index: 60; margin: 0; }
@@ -72,9 +54,5 @@
     .forum-timeline-panel { display: none; position: absolute; right: 0; bottom: calc(100% + .5rem); width: min(17rem, calc(100vw - 32px)); box-sizing: border-box; padding: .7rem; background: #fff; border: 1px solid var(--forum-line, #D1D7DC); border-radius: var(--forum-radius, 12px); box-shadow: 0 8px 24px rgba(40, 69, 85, .25); }
     .forum-timeline.is-open .forum-timeline-panel { display: block; }
     .forum-timeline-track { height: clamp(8rem, 38vh, 16rem); }
-    .forum-tree-host { max-height: 50vh; }
 }
 
-@media (prefers-reduced-motion: reduce) {
-    .forum-tree-node circle { transition: none; }
-}

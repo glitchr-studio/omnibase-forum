@@ -4,32 +4,106 @@
  *
  *   - the timeline, Discourse's scroller: a track standing for the whole
  *     topic, a handle following the reading, click / drag / arrow keys to go
- *     anywhere - on this page by scrolling, on another page by loading it;
- *   - the "Arbre à messages": the same topic drawn as a tree. The trunk is
- *     the conversation going on; each "Répondre à ce message" grows a branch
- *     from the message answered. Height is time, oldest at the root, so the
- *     tree reads like the timeline beside it.
+ *     anywhere in it;
+ *   - the stream, Discourse's way with a long topic: the server still cuts
+ *     it in pages (for a reader without this script, and for the search
+ *     engines), but here it reads as one. The pages before and after the one
+ *     opened are fetched as the reader nears them and added in place - above
+ *     without moving what is being read - and a jump to a message pages away
+ *     fetches its page instead of reloading the document. The address and the
+ *     "Page n/N" follow the reading; the page-number pagers step aside.
  *
- * The tree lays itself out deterministically - a branch takes the nearest
- * lane free for its whole life on its side, trunk forks alternate right and
- * left - then lives: nodes sway on damped springs (verlet), and a branch
- * node dragged with the pointer bends its branch towards it (FABRIK inverse
- * kinematics), then springs back. prefers-reduced-motion keeps it still.
+ * Which message answers which is read in the thread itself - the "en réponse
+ * à" line, the branch's indent, the ">>n" links - and is not drawn beside it.
  */
 (function () {
     'use strict';
 
-    var nav = document.querySelector('[data-forum-timeline]');
-    var source = document.getElementById('forum-outline');
-    if (!nav || !source) return;
+    /*
+     * Started for the topic on the page, and started over for the next one.
+     *
+     * A site that swaps its pages in place (transparent.js on Chapaland)
+     * keeps this script loaded from one page of a topic to the next, and
+     * from one topic to another. Started once, it kept the first page's
+     * posts, page number and handlers: on page 3, reached from page 1 by the
+     * pager, a click on a page-3 message went through the page-1 start,
+     * which found it on "another page" and reloaded the document. So the
+     * whole thing is a start() with a destroy(): the document watches for
+     * the timeline's root to change and starts again on the new one, taking
+     * down the old one's listeners on the document, the window and the
+     * media query, its timers and its observer - and the nav
+     * itself when the narrow screen had parked it in <body>, out of the
+     * content the site swapped.
+     *
+     * Such a site also runs this script again when a page brings its
+     * <script> back, and two copies each started their own timeline on the
+     * same nav. The first copy stays the only one: a later run only
+     * asks it to look again.
+     */
+    if (window.ForumThread) {
+        window.ForumThread.boot();
+        return;
+    }
+    var live = null;
+
+    function boot() {
+        var nav = document.querySelector('[data-forum-timeline]');
+        if (live) {
+            if (live.alive() && nav === live.nav) return;
+            live.destroy();
+            live = null;
+            nav = document.querySelector('[data-forum-timeline]');
+        }
+        if (nav) live = start(nav);
+    }
+
+    var queued = false;
+    function soon() {
+        if (queued) return;
+        queued = true;
+        requestAnimationFrame(function () { queued = false; boot(); });
+    }
+    function watch() {
+        boot();
+        new MutationObserver(soon).observe(document.body, { childList: true, subtree: true });
+    }
+    window.ForumThread = { boot: soon };
+    if (document.body) watch(); else document.addEventListener('DOMContentLoaded', watch, { once: true });
+
+    function start(nav) {
+    // The nav's own outline (topic/show.html.twig writes it inside the nav):
+    // while a site swaps one page for the next, two can be in the document.
+    var source = nav.querySelector('#forum-outline');
+    if (!source) return null;
 
     var data;
-    try { data = JSON.parse(source.textContent); } catch (e) { return; }
+    try { data = JSON.parse(source.textContent); } catch (e) { return null; }
     var posts = data.posts || [];
     var total = posts.length;
-    if (!total) return;
+    if (!total) return null;
+
+    // Every listener that outlives the nav's own DOM, for destroy().
+    var bound = [];
+    function on(target, type, fn, options) {
+        target.addEventListener(type, fn, options);
+        bound.push([target, type, fn, options]);
+    }
+    // Where the nav stands in the content: the narrow screen parks the nav
+    // in <body> (settle()), and this marks its place - and, once the site
+    // has swapped the content away, that the page is gone.
+    var home = document.createComment('forum-timeline');
+    nav.parentNode.insertBefore(home, nav);
 
     var labels = data.labels || {};
+
+    /* ── the stream: the pages of the topic loaded around the one opened ── */
+    var list = document.querySelector('[data-forum-stream]');
+    var pages = list ? Math.max(1, parseInt(list.getAttribute('data-pages'), 10) || 1) : 1;
+    var loaded = { min: data.page, max: data.page };
+    var article = list ? list.closest('.forum-topic') : null;
+    var pageCount = document.querySelector('[data-forum-pagecount]');
+    var aborter = window.AbortController ? new AbortController() : null;
+    if (article && pages > 1) article.classList.add('is-streaming');
     var motion = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : { matches: false };
     var byId = {};
     posts.forEach(function (p, i) { p.index = i; byId[p.id] = p; });
@@ -41,14 +115,12 @@
     var dates = new Intl.DateTimeFormat(document.documentElement.lang || 'fr', { day: 'numeric', month: 'short', year: 'numeric' });
     function dayOf(p) { return p && p.at ? dates.format(new Date(p.at)) : ''; }
 
-    var tree = null;
     var current = -1;
-    var swallowClick = false; // set by the tree when a drag ends on a node
     nav.hidden = false;
 
     /* ── going somewhere ───────────────────────────────────────────────── */
     function hrefOf(p) { return data.url + (p.page > 1 ? '?page=' + p.page : '') + '#post-' + p.id; }
-    function elementOf(p) { return p.page === data.page ? document.getElementById('post-' + p.id) : null; }
+    function elementOf(p) { return p.page >= loaded.min && p.page <= loaded.max ? document.getElementById('post-' + p.id) : null; }
 
     // The whole topic is not on screen: a post is scrolled to when it is on
     // the page being read, and only loaded when it is on another one.
@@ -74,15 +146,129 @@
 
     function jump(i, instant) {
         var p = posts[clamp(Math.round(i), 0, total - 1)];
+        reach(p).then(function (el) {
+            if (!el) return;
+            scrollToPost(el, instant);
+            setAddress(hrefOf(p));
+            setPosition(p.index);
+        });
+    }
+
+    // The message's element, its page fetched first when it is not loaded: the
+    // page next to the loaded ones is added to them, a page further away takes
+    // their place. Without the stream (no list, or the fetch failing), a real
+    // load of the page, which keeps its ?page.
+    var pending = {};
+    function fetchPage(n) {
+        if (pending[n]) return pending[n];
+        var request = fetch(data.url + (n > 1 ? '?page=' + n : ''), {
+            credentials: 'same-origin',
+            headers: { 'X-Forum-Stream': '1', 'Accept': 'text/html' },
+            signal: aborter ? aborter.signal : undefined
+        }).then(function (r) {
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.text();
+        }).then(function (html) {
+            var t = document.createElement('template');
+            t.innerHTML = html;
+            return Array.prototype.filter.call(t.content.children, function (el) { return el.matches('li.forum-post'); });
+        });
+        pending[n] = request;
+        var clear = function () { delete pending[n]; };
+        request.then(clear, clear);
+        return request;
+    }
+
+    var statusAfter = null, statusBefore = null;
+    function status(where, state) {
+        if (!list) return;
+        var el = where === 'before' ? statusBefore : statusAfter;
+        if (!el) {
+            el = document.createElement('p');
+            el.className = 'forum-stream-status';
+            el.setAttribute('role', 'status');
+            el.hidden = true;
+            list.parentNode.insertBefore(el, where === 'before' ? list : list.nextSibling);
+            if (where === 'before') statusBefore = el; else statusAfter = el;
+        }
+        el.hidden = !state;
+        el.classList.toggle('is-failed', state === 'failed');
+        el.textContent = state === 'failed' ? (labels.failed || '') : state ? (labels.loading || '…') : '';
+    }
+
+    function loadPage(n, where) {
+        if (!list || n < 1 || n > pages) return Promise.resolve(false);
+        if (n >= loaded.min && n <= loaded.max) return Promise.resolve(true);
+        if (where === 'after' && n !== loaded.max + 1) where = 'replace';
+        if (where === 'before' && n !== loaded.min - 1) where = 'replace';
+        status(where === 'before' ? 'before' : 'after', 'loading');
+        return fetchPage(n).then(function (items) {
+            status('before', null);
+            status('after', null);
+            if (!list.isConnected || !items.length) return false;
+            if (n >= loaded.min && n <= loaded.max) return true; // loaded meanwhile
+            if (where === 'after' && n === loaded.max + 1) {
+                items.forEach(function (li) { list.appendChild(li); });
+                loaded.max = n;
+            } else if (where === 'before' && n === loaded.min - 1) {
+                // What is being read stays where it is on screen: the browser's
+                // own scroll anchoring does it in some browsers and not in
+                // others, so the difference is measured, not assumed.
+                var anchor = readingElement() || list.firstElementChild;
+                var before = anchor ? anchor.getBoundingClientRect().top : 0;
+                var first = list.firstElementChild;
+                items.forEach(function (li) { list.insertBefore(li, first); });
+                var shift = anchor ? anchor.getBoundingClientRect().top - before : 0;
+                if (Math.abs(shift) > 0.5) window.scrollBy({ top: shift, behavior: 'instant' });
+                loaded.min = n;
+            } else {
+                while (list.firstChild) list.removeChild(list.firstChild);
+                items.forEach(function (li) { list.appendChild(li); });
+                loaded.min = loaded.max = n;
+                seen.clear();
+            }
+            collect();
+            watchEdges();
+            schedule();
+            return true;
+        }, function (e) {
+            status('before', null);
+            status('after', e && e.name === 'AbortError' ? null : 'failed');
+            return false;
+        });
+    }
+
+    function reach(p) {
         var el = elementOf(p);
-        if (!el) { window.location.href = hrefOf(p); return; }
-        scrollToPost(el, instant);
-        setAddress(hrefOf(p));
+        if (el) return Promise.resolve(el);
+        if (!list) { window.location.href = hrefOf(p); return Promise.resolve(null); }
+        var where = p.page === loaded.max + 1 ? 'after' : p.page === loaded.min - 1 ? 'before' : 'replace';
+        return loadPage(p.page, where).then(function (ok) {
+            var found = elementOf(p);
+            if (!ok || !found) { window.location.href = hrefOf(p); return null; }
+            return found;
+        });
     }
 
     /* ── where the reader is ───────────────────────────────────────────── */
-    var onPage = posts.map(function (p) { return { post: p, el: elementOf(p) }; }).filter(function (x) { return x.el; });
+    // The loaded messages, in order, gathered again whenever a page comes in.
+    var onPage = [];
     var seen = new Set();
+    var io = null;
+    function collect() {
+        onPage = posts.map(function (p) { return { post: p, el: elementOf(p) }; }).filter(function (x) { return x.el; });
+        if (io) onPage.forEach(function (x) { io.observe(x.el); });
+    }
+    collect();
+    // The message the reader is on, for keeping it in place when a page is added above.
+    function readingElement() {
+        var line = Math.min(96, window.innerHeight * 0.2), best = null;
+        onPage.forEach(function (x) {
+            var r = x.el.getBoundingClientRect();
+            if (r.bottom > line && (!best || r.top < best.r.top)) best = { el: x.el, r: r };
+        });
+        return best ? best.el : null;
+    }
 
     // The post crossing a line near the top of the window, and how far into it.
     function measure() {
@@ -134,11 +320,19 @@
         return i;
     }
 
+    // The reader's own scrolling has begun: until then the address is the one
+    // they came with (its #post is where arrive() takes them), after it the
+    // address follows the reading.
+    var moved = false;
     function setPosition(pos) {
         var i = place(pos);
         if (i !== current) {
             current = i;
-            if (tree) tree.highlight(i, false);
+            var p = posts[i];
+            if (pageCount && pageCount.getAttribute('data-label')) {
+                pageCount.textContent = format(pageCount.getAttribute('data-label'), { page: p.page, total: pages });
+            }
+            if (moved && !dragging && list && pages > 1) setAddress(i ? hrefOf(p) : data.url);
         }
     }
 
@@ -159,15 +353,35 @@
         queued = true;
         requestAnimationFrame(function () { queued = false; if (!dragging) setPosition(measure()); });
     }
+    var edges = null;
+    function watchEdges() {
+        if (!edges || !list) return;
+        edges.disconnect();
+        if (list.firstElementChild) edges.observe(list.firstElementChild);
+        if (list.lastElementChild) edges.observe(list.lastElementChild);
+    }
     if ('IntersectionObserver' in window) {
-        var io = new IntersectionObserver(function (entries) {
+        io = new IntersectionObserver(function (entries) {
             entries.forEach(function (e) { if (e.isIntersecting) seen.add(e.target); else seen.delete(e.target); });
             schedule();
         });
         onPage.forEach(function (x) { io.observe(x.el); });
+
+        // The first and last loaded messages coming near the window call in
+        // the page before or after, a screen or two ahead of the reader.
+        if (list && pages > 1) {
+            edges = new IntersectionObserver(function (entries) {
+                entries.forEach(function (e) {
+                    if (!e.isIntersecting || dragging) return;
+                    if (e.target === list.lastElementChild && loaded.max < pages) loadPage(loaded.max + 1, 'after');
+                    else if (e.target === list.firstElementChild && loaded.min > 1 && moved) loadPage(loaded.min - 1, 'before');
+                });
+            }, { rootMargin: '1200px 0px' });
+            watchEdges();
+        }
     }
-    window.addEventListener('scroll', schedule, { passive: true });
-    window.addEventListener('resize', schedule);
+    on(window, 'scroll', schedule, { passive: true });
+    on(window, 'resize', schedule);
 
     /* ── moving the handle: pointer and keys ───────────────────────────── */
     // Where a press on the track lands.
@@ -228,15 +442,13 @@
     // A fixed pill is only fixed to the window if no ancestor is transformed
     // (a site's sticky header may `translate` its <main>), so on a narrow
     // screen the nav waits in <body>, and goes back to its column when wide.
-    var home = document.createComment('forum-timeline');
-    nav.parentNode.insertBefore(home, nav);
     var narrow = window.matchMedia('(max-width: 900px)');
     function settle() {
         if (narrow.matches && nav.parentNode !== document.body) document.body.appendChild(nav);
         else if (!narrow.matches && nav.parentNode === document.body) home.parentNode.insertBefore(nav, home);
         schedule();
     }
-    if (narrow.addEventListener) narrow.addEventListener('change', settle); else narrow.addListener(settle);
+    if (narrow.addEventListener) on(narrow, 'change', settle); else narrow.addListener(settle);
     settle();
 
     function open(yes) {
@@ -245,41 +457,15 @@
         if (yes) schedule();
     }
     pill.addEventListener('click', function () { open(!nav.classList.contains('is-open')); });
-    document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && nav.classList.contains('is-open')) { open(false); pill.focus(); } });
-    document.addEventListener('pointerdown', function (e) { if (!nav.contains(e.target)) open(false); });
-
-    /* ── timeline / tree ───────────────────────────────────────────────── */
-    var scroller = nav.querySelector('[data-timeline-scroller]');
-    var treeBox = nav.querySelector('[data-forum-tree]');
-    var viewButtons = nav.querySelectorAll('[data-timeline-view]');
-
-    function show(view) {
-        var isTree = view === 'tree';
-        viewButtons.forEach(function (b) { b.setAttribute('aria-pressed', b.getAttribute('data-timeline-view') === view ? 'true' : 'false'); });
-        scroller.hidden = isTree;
-        treeBox.hidden = !isTree;
-        nav.classList.toggle('is-tree', isTree);
-        if (isTree) {
-            if (!tree) tree = createTree(treeBox.querySelector('[data-forum-tree-host]'));
-            tree.start();
-            tree.highlight(current, true);
-        } else {
-            if (tree) tree.stop();
-            schedule();
-        }
-        try { localStorage.setItem('forum.thread.view', view); } catch (e) {}
-    }
-    viewButtons.forEach(function (b) { b.addEventListener('click', function () { show(b.getAttribute('data-timeline-view')); }); });
+    on(document, 'keydown', function (e) { if (e.key === 'Escape' && nav.classList.contains('is-open')) { open(false); pill.focus(); } });
+    on(document, 'pointerdown', function (e) { if (!nav.contains(e.target)) open(false); });
 
     setPosition(measure());
-    var saved = null;
-    try { saved = localStorage.getItem('forum.thread.view'); } catch (e) {}
-    if (saved === 'tree') show('tree');
 
     /* ── the topic's own links ─────────────────────────────────────────── */
     /*
      * Every link into this topic - a post's number, its permalink, "en réponse
-     * à #n", "n réponses", a node of the tree - goes to a message, not to a
+     * à #n", "n réponses" - goes to a message, not to a
      * page: when that message is already on screen the reader should travel to
      * it, not watch the whole page load again.
      *
@@ -333,25 +519,22 @@
     }
 
     function follow(p, instant) {
-        var el = elementOf(p);
-        if (!el) { window.location.href = hrefOf(p); return; } // another page: a real load, its address keeping ?page
-        scrollToPost(el, instant);
-        point(el);
-        setAddress(hrefOf(p));
-        setPosition(p.index);
-        if (tree) tree.highlight(p.index, true);
+        reach(p).then(function (el) {
+            if (!el) return;
+            scrollToPost(el, instant);
+            point(el);
+            setAddress(hrefOf(p));
+            setPosition(p.index);
+        });
     }
 
-    document.addEventListener('click', function (e) {
-        // A drag that ended on a tree node is not a click on its link.
-        if (swallowClick) { e.preventDefault(); return; }
+    on(document, 'click', function (e) {
         // Already answered, or the reader asking for a new tab/window: leave
         // the browser and the other handlers to it.
         if (e.defaultPrevented || e.button || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
         var a = e.target && e.target.closest ? e.target.closest('a') : null;
         if (!a) return;
-        // getAttribute, not .href: on the tree's SVG links that property is an
-        // SVGAnimatedString, not the address.
+        // getAttribute, not .href: the address as the page wrote it, page and all.
         var p = postOfHref(a.getAttribute('href'));
         if (!p) return;
         e.preventDefault();
@@ -379,9 +562,16 @@
     // has settled (and not at all when it was the hash that changed), so the
     // post is put in view here, without an animation - it is where the reader
     // arrives, not somewhere they travelled to.
-    var moved = false;
     ['wheel', 'touchstart', 'keydown', 'pointerdown'].forEach(function (name) {
-        window.addEventListener(name, function () { moved = true; }, { passive: true, once: true });
+        on(window, name, function () {
+            if (moved) return;
+            moved = true;
+            // The page above the one opened waited for the reader to move.
+            if (list && loaded.min > 1 && list.firstElementChild) {
+                var r = list.firstElementChild.getBoundingClientRect();
+                if (r.top > -1200) loadPage(loaded.min - 1, 'before');
+            }
+        }, { passive: true, once: true });
     });
     function arrive() {
         var p = postOfHref(location.hash);
@@ -394,255 +584,24 @@
     }
     arrive();
     // Once more when the images and fonts have settled, since they move posts.
-    window.addEventListener('load', arrive);
+    on(window, 'load', arrive);
 
-    /* ── the message tree ──────────────────────────────────────────────── */
-    function createTree(host) {
-        var NS = 'http://www.w3.org/2000/svg';
-        var STEP = total <= 24 ? 22 : clamp(520 / total, 9, 22);
-        var LANE = 18, PAD = 16, R = STEP >= 14 ? 5 : 3.5;
-
-        function svgEl(name, attrs) {
-            var el = document.createElementNS(NS, name);
-            for (var k in attrs) el.setAttribute(k, attrs[k]);
-            return el;
+    return {
+        nav: nav,
+        alive: function () { return home.isConnected; },
+        destroy: function () {
+            bound.forEach(function (b) { b[0].removeEventListener(b[1], b[2], b[3]); });
+            bound = [];
+            if (io) io.disconnect();
+            if (edges) edges.disconnect();
+            if (aborter) aborter.abort();
+            if (article) article.classList.remove('is-streaming');
+            clearTimeout(markTimer);
+            clearTimeout(keyTimer);
+            // Parked in <body> for the narrow screen: not in the content the
+            // site swapped out, so it goes by itself.
+            if (nav.parentNode === document.body) document.body.removeChild(nav);
         }
-
-        // Branches and their lanes: the nearest lane on the branch's side that
-        // is free from the post it grew on to its last post.
-        var branches = {}, used = {}, forks = 0;
-        posts.forEach(function (p) { (branches[p.branch] = branches[p.branch] || { nodes: [] }).nodes.push(p); });
-        function free(lane, a, z) { return !(used[lane] || []).some(function (r) { return a <= r[1] + 1 && z >= r[0] - 1; }); }
-        function claim(lane, a, z) { (used[lane] = used[lane] || []).push([a, z]); }
-        branches[posts[0].branch].lane = 0;
-        claim(0, 0, total - 1);
-        posts.forEach(function (p) {
-            if (p.branch !== p.id || !byId[p.parent]) return;
-            var from = byId[p.parent], b = branches[p.id], lane0 = branches[from.branch].lane;
-            var side = lane0 ? Math.sign(lane0) : (forks++ % 2 ? -1 : 1);
-            var a = from.index, z = b.nodes[b.nodes.length - 1].index, lane = lane0 + side;
-            while (!free(lane, a, z)) lane += side;
-            b.lane = lane;
-            claim(lane, a, z);
-        });
-
-        var lanes = Object.keys(branches).map(function (k) { return branches[k].lane || 0; });
-        var minLane = Math.min.apply(null, lanes), maxLane = Math.max.apply(null, lanes);
-        var width = (maxLane - minLane) * LANE + PAD * 2, height = (total - 1) * STEP + PAD * 2;
-
-        // Leonardo's rule, roughly: a limb is as thick as what it carries.
-        var weight = posts.map(function () { return 1; });
-        for (var i = total - 1; i > 0; i--) if (byId[posts[i].parent]) weight[byId[posts[i].parent].index] += weight[i];
-
-        var svg = svgEl('svg', { viewBox: '0 0 ' + width + ' ' + height, width: width, height: height, class: 'forum-tree-svg' });
-        var bark = svgEl('g', { class: 'forum-tree-bark' }), leaves = svgEl('g', { class: 'forum-tree-leaves' });
-        svg.appendChild(bark);
-        svg.appendChild(leaves);
-
-        var nodes = posts.map(function (p, i) {
-            var n = {
-                p: p, i: i,
-                x: PAD + ((branches[p.branch].lane || 0) - minLane) * LANE,
-                y: PAD + (total - 1 - i) * STEP,
-                parent: byId[p.parent] ? byId[p.parent].index : -1,
-                w: Math.min(STEP * 0.55, 1.2 + Math.sqrt(weight[i]) * 0.9),
-                seed: (p.id * 7919 % 1000) / 159,
-                lx: 0, ly: 0, px: 0, py: 0, dx: 0, dy: 0, held: false, current: false
-            };
-            if (n.parent >= 0) bark.appendChild(n.edge = svgEl('path', {}));
-            bark.appendChild(n.knot = svgEl('circle', { r: 0 }));
-
-            var name = format(labels.node, { number: p.number, author: p.author || labels.nobody, date: dayOf(p) }) + (p.deleted ? ' (' + labels.deleted + ')' : '');
-            n.link = svgEl('a', { href: hrefOf(p), class: 'forum-tree-node' + (p.branch ? '' : ' is-trunk') + (p.deleted ? ' is-deleted' : ''), 'data-index': i, 'aria-label': name });
-            var title = svgEl('title', {});
-            title.textContent = name;
-            n.link.appendChild(title);
-            var hue = p.authorId === null ? null : Math.round((p.authorId * 137.508) % 360);
-            n.dot = svgEl('circle', { r: 0, style: '--leaf:' + (hue === null ? '#9aa9b5' : 'hsl(' + hue + ', 68%, 52%)') });
-            n.link.appendChild(n.dot);
-            leaves.appendChild(n.link);
-            return n;
-        });
-        host.appendChild(svg);
-
-        // A limb from m to n: a cubic curve (straight up a lane, a sweep out of
-        // the parent otherwise), filled between two offset edges so it tapers.
-        function limb(m, n, grow) {
-            var mx = m.x + m.dx, my = m.y + m.dy, nx = n.x + n.dx, ny = n.y + n.dy, dy = ny - my;
-            var c = m.p.branch === n.p.branch || (branches[m.p.branch].lane === branches[n.p.branch].lane)
-                ? [mx, my, mx, my + dy / 3, nx, ny - dy / 3, nx, ny]
-                : [mx, my, mx + (nx - mx) * 0.6, my + dy * 0.12, nx, my + dy * 0.55, nx, ny];
-            var w0 = Math.min(m.w, n.w * 1.35), w1 = n.w, left = [], right = [];
-            for (var k = 0; k <= 8; k++) {
-                var t = (k / 8) * grow, u = 1 - t;
-                var x = u * u * u * c[0] + 3 * u * u * t * c[2] + 3 * u * t * t * c[4] + t * t * t * c[6];
-                var y = u * u * u * c[1] + 3 * u * u * t * c[3] + 3 * u * t * t * c[5] + t * t * t * c[7];
-                var tx = 3 * u * u * (c[2] - c[0]) + 6 * u * t * (c[4] - c[2]) + 3 * t * t * (c[6] - c[4]);
-                var ty = 3 * u * u * (c[3] - c[1]) + 6 * u * t * (c[5] - c[3]) + 3 * t * t * (c[7] - c[5]);
-                var len = Math.hypot(tx, ty) || 1, half = (w0 + (w1 - w0) * k / 8) / 2;
-                left.push((x - ty / len * half).toFixed(1) + ',' + (y + tx / len * half).toFixed(1));
-                right.unshift((x + ty / len * half).toFixed(1) + ',' + (y - tx / len * half).toFixed(1));
-            }
-            return 'M' + left.join('L') + 'L' + right.join('L') + 'Z';
-        }
-
-        var grown = motion.matches ? 1 : 0, startedAt = 0, running = false, raf = 0, drag = null;
-
-        function draw() {
-            var shown = (1 - Math.pow(1 - grown, 3)) * total;
-            nodes.forEach(function (n) {
-                var g = clamp(shown - n.i, 0, 1), x = (n.x + n.dx).toFixed(1), y = (n.y + n.dy).toFixed(1);
-                n.dot.setAttribute('cx', x);
-                n.dot.setAttribute('cy', y);
-                n.dot.setAttribute('r', (R * (n.current ? 1.45 : 1) * g).toFixed(2));
-                n.knot.setAttribute('cx', x);
-                n.knot.setAttribute('cy', y);
-                n.knot.setAttribute('r', (n.w / 2 * g).toFixed(2));
-                if (n.edge) n.edge.setAttribute('d', g > 0 ? limb(nodes[n.parent], n, g) : '');
-            });
-        }
-
-        /* FABRIK: the chain from a branch's anchor to the held node reaches for
-           the pointer, every link keeping its length, the anchor staying put. */
-        function fabrik(pts, lens, goal) {
-            var last = pts.length - 1, base = { x: pts[0].x, y: pts[0].y };
-            function toward(from, to, len) {
-                var dx = to.x - from.x, dy = to.y - from.y, d = Math.hypot(dx, dy) || 1;
-                return { x: from.x + dx / d * len, y: from.y + dy / d * len };
-            }
-            for (var it = 0; it < 10; it++) {
-                pts[last] = { x: goal.x, y: goal.y };
-                for (var j = last - 1; j >= 0; j--) pts[j] = toward(pts[j + 1], pts[j], lens[j]);
-                pts[0] = base;
-                for (j = 0; j < last; j++) pts[j + 1] = toward(pts[j], pts[j + 1], lens[j]);
-                if (Math.hypot(pts[last].x - goal.x, pts[last].y - goal.y) < 0.5) break;
-            }
-            return pts;
-        }
-
-        // Turns the solved chain into the nodes' own offsets (what their parent
-        // does not already carry), so whatever grows on them follows.
-        function bend() {
-            var chain = drag.chain;
-            var pts = fabrik(chain.map(function (k) { return { x: nodes[k].x + nodes[k].dx, y: nodes[k].y + nodes[k].dy }; }), drag.lens, drag.goal);
-            for (var j = 1; j < chain.length; j++) {
-                var n = nodes[chain[j]], m = nodes[chain[j - 1]];
-                n.lx = n.px = pts[j].x - n.x - (pts[j - 1].x - m.x);
-                n.ly = n.py = pts[j].y - n.y - (pts[j - 1].y - m.y);
-                n.held = true;
-            }
-        }
-
-        // Verlet springs, driven by a little wind; a branch carries its
-        // parent's movement, the trunk stands on its own.
-        function frame(now) {
-            raf = 0;
-            var still = motion.matches || total > 400, moving = false, time = now / 1000;
-            if (grown < 1) grown = clamp((now - startedAt) / 1600, 0, 1);
-            if (drag && drag.goal) bend();
-            nodes.forEach(function (n) {
-                if (!n.held) {
-                    var amp = still ? 0 : n.p.branch ? 0.35 + 0.25 * n.p.level : 1.4 * n.i / total;
-                    var wind = amp * (Math.sin(time * 1.1 + n.y * 0.02 + n.seed) + 0.4 * Math.sin(time * 2.3 + n.seed));
-                    var vx = (n.lx - n.px) * 0.9, vy = (n.ly - n.py) * 0.9;
-                    n.px = n.lx;
-                    n.py = n.ly;
-                    n.lx += vx + 0.03 * (wind - n.lx);
-                    n.ly += vy + 0.03 * (wind * 0.2 - n.ly);
-                    if (Math.abs(vx) + Math.abs(vy) + Math.abs(n.lx) + Math.abs(n.ly) > 0.02) moving = true;
-                }
-                var m = n.parent >= 0 && n.p.branch ? nodes[n.parent] : null;
-                n.dx = (m ? m.dx : 0) + n.lx;
-                n.dy = (m ? m.dy : 0) + n.ly;
-            });
-            draw();
-            if (running && (!still || moving || grown < 1 || drag)) raf = requestAnimationFrame(frame);
-        }
-        function kick() { if (running && !raf) raf = requestAnimationFrame(frame); }
-
-        /* Pointer: a press without movement follows the link; a press dragged
-           on a branch node bends that branch. */
-        function svgPoint(e) {
-            var ctm = svg.getScreenCTM();
-            if (!ctm) return { x: 0, y: 0 };
-            var pt = new DOMPoint(e.clientX, e.clientY).matrixTransform(ctm.inverse());
-            return { x: pt.x, y: pt.y };
-        }
-        var press = null;
-        svg.addEventListener('pointerdown', function (e) {
-            var a = e.target.closest && e.target.closest('.forum-tree-node');
-            if (a && !e.button) press = { i: +a.getAttribute('data-index'), x: e.clientX, y: e.clientY, id: e.pointerId };
-        });
-        svg.addEventListener('pointermove', function (e) {
-            if (!press) return;
-            if (!drag) {
-                var n = nodes[press.i];
-                if (Math.hypot(e.clientX - press.x, e.clientY - press.y) < 5) return;
-                if (!n.p.branch) { press = null; return; }
-                var chain = [press.i];
-                while (nodes[chain[0]].p.branch === n.p.branch && nodes[chain[0]].parent >= 0) chain.unshift(nodes[chain[0]].parent);
-                drag = { chain: chain, lens: [], goal: null };
-                for (var j = 0; j < chain.length - 1; j++) {
-                    drag.lens.push(Math.hypot(nodes[chain[j + 1]].x - nodes[chain[j]].x, nodes[chain[j + 1]].y - nodes[chain[j]].y));
-                }
-                svg.setPointerCapture(press.id);
-                svg.classList.add('is-bending');
-            }
-            drag.goal = svgPoint(e);
-            e.preventDefault();
-            kick();
-        });
-        function letGo() {
-            if (drag) {
-                drag.chain.forEach(function (k) {
-                    var n = nodes[k];
-                    n.held = false;
-                    if (motion.matches) n.lx = n.ly = n.px = n.py = 0;
-                });
-                drag = null;
-                swallowClick = true;
-                setTimeout(function () { swallowClick = false; }, 0);
-                svg.classList.remove('is-bending');
-                kick();
-            }
-            press = null;
-        }
-        svg.addEventListener('pointerup', letGo);
-        svg.addEventListener('pointercancel', letGo);
-        // A node's link is a link like any other of the topic: the document's
-        // capture handler above answers it (and swallows the click that only
-        // ended a drag). Nothing to do here but keep a click on the bark, not
-        // on a node, from doing anything at all.
-        svg.addEventListener('click', function (e) {
-            if (!e.target.closest || !e.target.closest('.forum-tree-node')) e.preventDefault();
-        });
-
-        return {
-            start: function () {
-                if (!startedAt) startedAt = performance.now();
-                running = true;
-                kick();
-            },
-            stop: function () {
-                running = false;
-                if (raf) cancelAnimationFrame(raf);
-                raf = 0;
-            },
-            highlight: function (index, reveal) {
-                nodes.forEach(function (n) {
-                    n.current = n.i === index;
-                    n.link.classList.toggle('is-current', n.current);
-                    if (n.current) n.link.setAttribute('aria-current', 'location'); else n.link.removeAttribute('aria-current');
-                });
-                var n = nodes[index];
-                if (n && svg.clientHeight) {
-                    var y = n.y / height * svg.clientHeight;
-                    if (reveal || y < host.scrollTop + 16 || y > host.scrollTop + host.clientHeight - 16) {
-                        host.scrollTop = y - host.clientHeight / 2;
-                    }
-                }
-                if (!raf) draw();
-            }
-        };
+    };
     }
 })();
