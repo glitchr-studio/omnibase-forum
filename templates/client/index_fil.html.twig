@@ -90,19 +90,3 @@
     {{ parent() }}
     <script src="{{ asset('bundles/forum/js/forum-feed.js') }}" defer></script>
 {% endblock %}
-
-{#
- # The boxes go under the page, not beside it. A list of discussions is wide -
- # a title, its board, two counters and a date - and the column beside it took
- # a fifth of that width for three boxes that are read once, leaving the feed
- # squeezed and its head, its rows and the shelf under them ending on three
- # different lines. Shelved, they read as a footer across the page, and the
- # feed has the room; the layout draws no empty column (forum.css).
- #}
-{% block forum_side %}{% endblock %}
-
-{% block forum_footer %}
-<div class="forum-shelf">
-    {% include '@Forum/client/_aside.html.twig' with {boxes: ['help', 'new', 'tags'], tags: tags|default([])} %}
-</div>
-{% endblock %}

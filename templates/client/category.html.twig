@@ -10,12 +10,13 @@
     {# The board's head: its folder badge says whether it is locked, the title stays plain. #}
     <section class="forum-board-head" style="{{ category.color ? '--cat:' ~ category.color : '' }}">
         <div class="forum-board-head-text">
-            <h2>{% include '@Forum/client/_folder.html.twig' with {state: category.locked ? 'lock' : (category.requiredRole ? 'announce' : 'default'), size: 32, title: category.locked ? '@forum.board.locked'|trans : ''} %} {{ category.title }}</h2>
+            <h2>{% set folder = forum_board_folder(category, board_last|default(null), board_hot|default(false)) %}{% include '@Forum/client/_folder.html.twig' with {state: folder.state, size: 32, title: folder.title ? folder.title|trans : ''} %} {{ category.title }}</h2>
             {% if category.description %}<p>{{ category.description }}</p>{% endif %}
             {% if category.locked %}<p class="forum-board-head-note">{{ '@forum.board.locked'|trans }}</p>{% endif %}
         </div>
+        {# "Nouveau sujet" lives here, on the board, and nowhere inside a topic: the 2005 badge where the site draws one (_badge.html.twig). #}
         {% if is_granted('FORUM_POST', category) %}
-            <a class="forum-btn forum-btn-primary" href="{{ path('forum_topic_new', {category: category.slug}) }}"><i class="fa-solid fa-plus"></i> {{ '@forum.topic.new'|trans }}</a>
+            {% include '@Forum/client/_badge.html.twig' with {name: 'new_topic', href: path('forum_topic_new', {category: category.slug}), title: '@forum.topic.new'|trans} %}
         {% endif %}
     </section>
 

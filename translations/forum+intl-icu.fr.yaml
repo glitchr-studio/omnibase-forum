@@ -15,6 +15,9 @@ board:
   locked: "Ce forum est verrouillé : on y lit, on n'y écrit plus."
   private: "Forum réservé"
   last_message: "Aller au dernier message"
+  new: "Nouveau forum"
+  new_hint: "Un forum dans une section du BBS. Sans section, c'est une nouvelle section que tu ouvres."
+  create: "Ouvrir le forum"
 
 # Les infobulles des pastilles, et la légende sous les listes. Les mots sont
 # ceux du BBS de 2004 (lang_french/lang_main.php) : « Populaire »,
@@ -23,20 +26,30 @@ folder:
   hot: "Sujet populaire"
   hot_board: "Forum populaire"
   announce: "Annonce"
+  announce_board: "Forum d'annonces"
+  new: "Des messages récents"
+  new_board: "Des messages récents dans ce forum"
 
 legend:
   label: "Légende des pastilles"
+  active_note: "actif : un message depuis moins de {hours} h"
   topic:
-    default: "Sujet"
-    hot: "Populaire"
+    default: "Sujet calme"
+    new: "Sujet actif"
+    hot: "Populaire, calme"
+    new_hot: "Populaire, actif"
     lock: "Verrouillé"
+    new_lock: "Verrouillé, actif"
     announce: "Annonce"
     sticky: "Post-it"
   board:
-    default: "Forum"
-    hot: "Forum populaire"
-    lock: "Forum verrouillé"
-    announce: "Forum réservé"
+    default: "Forum calme"
+    new: "Forum actif"
+    hot: "Populaire, calme"
+    new_hot: "Populaire, actif"
+    lock: "Verrouillé"
+    new_lock: "Verrouillé, actif"
+    announce: "Annonces"
 
 list:
   topic: "Sujet"
@@ -168,6 +181,15 @@ form:
   markdown_help: "Markdown accepté : **gras**, _italique_, > citation, `code`, listes, liens."
   save: "Enregistrer"
   cancel: "Annuler"
+  board_title: "Nom du forum"
+  board_title_placeholder: "Agora, Helpz, Games…"
+  board_parent: "Section"
+  board_parent_none: "— Nouvelle section —"
+  board_parent_help: "La section du BBS où le forum s'affiche. Laisse vide pour créer une section."
+  board_description: "Description"
+  board_description_placeholder: "De quoi parle-t-on dans ce forum ?"
+  board_announcement: "Forum d'annonces"
+  board_announcement_help: "Le forum et ses sujets portent la pastille « annonce », et la vue « fil » affiche ses derniers sujets en tête."
 
 flash:
   topic_created: "Ton sujet est en ligne !"
@@ -176,6 +198,8 @@ flash:
   moderated: "C'est fait."
   board_locked: "Ce forum n'accepte plus de nouveaux sujets."
   flood: "Doucement ! Attends encore {seconds} secondes avant de poster à nouveau."
+  board_created: "Le forum « {title} » est ouvert !"
+  group_created: "La section « {title} » est ouverte !"
 
 style:
   label: "Style du sujet"
@@ -215,3 +239,29 @@ admin:
     save: "Enregistrer l'ordre"
     saved: "L'ordre d'affichage est enregistré."
     unsaved: "Ordre modifié : pense à enregistrer."
+
+# Le sondage d'un sujet (Poll) : une question, des réponses, une voix par membre.
+poll:
+  title: "Sondage"
+  total: "{count, plural, =0 {Aucun vote pour l'instant} one {# vote} other {# votes}}"
+  vote: "Voter pour « {option} »"
+  your_vote: "ton vote"
+  pick: "Choisis ta réponse :"
+  login: "Connecte-toi pour voter."
+  closed: "Sondage clos : le sujet est verrouillé."
+  question_long: "Une question tient en {{ limit }} caractères."
+  question_blank: "Tu as écrit des réponses : il manque la question du sondage."
+  options_count: "Un sondage, c'est entre {min} et {max} réponses, une par ligne."
+  form:
+    legend: "Sondage (facultatif)"
+    question: "Question"
+    question_placeholder: "Le meilleur fan site ??"
+    question_help: "Laisse vide pour un sujet sans sondage."
+    options: "Réponses"
+    options_placeholder: "Une réponse par ligne"
+    options_help: "Entre 2 et 10 réponses, une par ligne. On ne peut plus les modifier une fois le sujet posté."
+  flash:
+    voted: "A voté !"
+    already: "Tu as déjà voté à ce sondage."
+    no_choice: "Choisis une réponse."
+    closed: "Ce sondage est clos."

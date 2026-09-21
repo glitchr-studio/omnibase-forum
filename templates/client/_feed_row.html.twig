@@ -1,17 +1,15 @@
 {#
- # One discussion of the feed (index_fil.html.twig): its avatars, title, board
- # and tags, counters and last activity. Drawn by the page for the page it
+ # One discussion of the feed (index_fil.html.twig): its author, title, board
+ # and tags, when it was opened, its counters and its last message. Drawn by the page for the page it
  # opens on, and by the feed's stream (_feed_rows.html.twig) for the pages
  # forum-feed.js adds as the reader scrolls - the one markup for both.
  # Variables: topic, page (the list page the row belongs to).
  #}
 {% set at = topic.activityAt %}
 <li class="forum-feed-row{{ topic.pinned ? ' is-pinned' }}{{ topic.locked ? ' is-locked' }}" data-topic="{{ topic.id }}" data-page="{{ page }}">
+    {# The one who opened the topic; who spoke last is said on the right, with when. #}
     <div class="forum-feed-avatars">
         {% include '@Forum/client/_avatar.html.twig' with {user: topic.author, size: 'sm'} %}
-        {% if topic.lastPoster and topic.lastPoster != topic.author %}
-            {% include '@Forum/client/_avatar.html.twig' with {user: topic.lastPoster, size: 'sm'} %}
-        {% endif %}
     </div>
     <div class="forum-feed-main">
         <a class="forum-topic-title" href="{{ path('forum_topic', {slug: topic.slug}) }}">
@@ -26,11 +24,17 @@
             {% for tag in topic.tags %}
                 <a class="forum-tag forum-tag-sm" href="{{ path('forum_tag', {slug: tag.slug}) }}" style="{{ tag.color ? '--tag:' ~ tag.color : '' }}">{{ tag }}</a>
             {% endfor %}
+            {# Who opened it, and when - the first message's day. #}
+            {% set born = topic.createdAt %}
+            <span class="forum-feed-by">{{ '@forum.list.by'|trans }} {{ include('@Forum/client/_member.html.twig', {user: topic.author})|trim|raw }}{% if born %}, <time datetime="{{ born|date('c') }}" title="{{ born|datetime('d MMMM yyyy, HH:mm') }}">{{ born|datetime('d MMM yyyy') }}</time>{% endif %}</span>
         </div>
     </div>
     <div class="forum-feed-num" title="{{ '@forum.list.replies'|trans }}"><b>{{ topic.replies }}</b><span>{{ '@forum.list.replies'|trans }}</span></div>
     <div class="forum-feed-num" title="{{ '@forum.list.views'|trans }}"><b>{{ topic.views }}</b><span>{{ '@forum.list.views'|trans }}</span></div>
+    {# The last message: when, and who wrote it. #}
     <div class="forum-feed-when">
-        <time datetime="{{ at ? at|date('c') : '' }}" title="{{ at ? at|datetime('d MMMM yyyy, HH:mm') : '' }}">{{ at ? at|datetime('d MMM') : '' }}</time>
+        <time datetime="{{ at ? at|date('c') : '' }}" title="{{ at ? at|datetime('d MMMM yyyy, HH:mm') : '' }}">{{ at ? at|datetime('d MMM yyyy') : '' }}</time>
+        {% set last_by = topic.lastPoster ?? topic.author %}
+        {% if last_by %}<span class="forum-feed-last-by">{{ '@forum.list.by'|trans }} {% include '@Forum/client/_member.html.twig' with {user: last_by} %}</span>{% endif %}
     </div>
 </li>

@@ -6,14 +6,17 @@
  #   scope   'topic' (a topic list) | 'board' (the board list) - the same five
  #           badges read differently on a board row, so the words differ
  #
- # phpBB listed every state twice, "new messages" and "no new messages". That
- # half is NOT drawn here: nothing in base-bundle records what a member has
- # already read (there is no per-thread visit), so a "new" entry could only
- # ever be false. The day a read marker exists, add the pairs back here and in
- # _folder.html.twig, whose new/new_hot/new_lock art is already waiting.
+ # phpBB listed its states twice, "new messages" and "no new messages". So does
+ # this one, read as the site draws them: the sleeping "zzz" face is a board or
+ # topic with no message for forum.active_hours, the talking one (speech
+ # bubble) one with a recent message - activity, not "unread": base-bundle
+ # keeps no per-member read marker. The announcement and the post-it have no
+ # awake variant in the art. ForumTwigExtension::topicFolder()/boardFolder()
+ # pick the badge the rows show; the states listed here are the same ones.
  #}
 {% set scope = scope|default('topic') %}
-{% set states = 'board' == scope ? ['default', 'hot', 'lock', 'announce'] : ['default', 'hot', 'lock', 'announce', 'sticky'] %}
+{% set states = ['default', 'new', 'hot', 'new_hot', 'lock', 'new_lock', 'announce'] %}
+{% if 'topic' == scope %}{% set states = states|merge(['sticky']) %}{% endif %}
 
 {#
  # Styled here rather than in forum.css: the block is small, self-contained,
@@ -23,6 +26,7 @@
 .forum-legend { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem 1.25rem; margin: .75rem 0 0; padding: .55rem .9rem; list-style: none; background: #fff; border: 1px solid var(--forum-line); border-radius: var(--forum-radius); font-size: 12px; color: var(--forum-muted); }
 .forum-legend-item { display: flex; align-items: center; gap: .4rem; }
 .forum-legend .forum-folder { width: auto; height: 22px; }
+.forum-legend-note { margin-left: auto; font-style: italic; }
 </style>
 
 <ul class="forum-legend" aria-label="{{ '@forum.legend.label'|trans }}">
@@ -32,4 +36,5 @@
             <span>{{ ('@forum.legend.' ~ scope ~ '.' ~ state)|trans }}</span>
         </li>
     {% endfor %}
+    <li class="forum-legend-note">{{ '@forum.legend.active_note'|trans({hours: forum_active_hours()}) }}</li>
 </ul>

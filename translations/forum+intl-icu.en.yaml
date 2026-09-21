@@ -15,6 +15,9 @@ board:
   locked: "This board is locked: read-only from now on."
   private: "Restricted board"
   last_message: "Go to the last message"
+  new: "New board"
+  new_hint: "A board in one of the BBS sections. With no section, you open a new section."
+  create: "Open the board"
 
 # Badge tooltips, and the legend under the lists. The words are the 2004
 # board's own: Popular, Locked, Announcement, Sticky.
@@ -22,20 +25,30 @@ folder:
   hot: "Popular topic"
   hot_board: "Popular board"
   announce: "Announcement"
+  announce_board: "Announcements board"
+  new: "Recent messages"
+  new_board: "Recent messages in this board"
 
 legend:
   label: "Badge legend"
+  active_note: "active: a message in the last {hours} h"
   topic:
-    default: "Topic"
-    hot: "Popular"
+    default: "Quiet topic"
+    new: "Active topic"
+    hot: "Popular, quiet"
+    new_hot: "Popular, active"
     lock: "Locked"
+    new_lock: "Locked, active"
     announce: "Announcement"
     sticky: "Sticky"
   board:
-    default: "Board"
-    hot: "Popular board"
-    lock: "Locked board"
-    announce: "Restricted board"
+    default: "Quiet board"
+    new: "Active board"
+    hot: "Popular, quiet"
+    new_hot: "Popular, active"
+    lock: "Locked"
+    new_lock: "Locked, active"
+    announce: "Announcements"
 
 list:
   topic: "Topic"
@@ -167,6 +180,15 @@ form:
   markdown_help: "Markdown accepted: **bold**, _italic_, > quote, `code`, lists, links."
   save: "Save"
   cancel: "Cancel"
+  board_title: "Board name"
+  board_title_placeholder: "Agora, Help, Games…"
+  board_parent: "Section"
+  board_parent_none: "— New section —"
+  board_parent_help: "The BBS section the board is listed in. Leave empty to create a section."
+  board_description: "Description"
+  board_description_placeholder: "What is this board about?"
+  board_announcement: "Announcements board"
+  board_announcement_help: "The board and its topics wear the announcement badge, and the feed view shows its latest topics first."
 
 flash:
   topic_created: "Your topic is online!"
@@ -175,6 +197,8 @@ flash:
   moderated: "Done."
   board_locked: "This board takes no new topics."
   flood: "Easy! Wait another {seconds} seconds before posting again."
+  board_created: "The board “{title}” is open!"
+  group_created: "The section “{title}” is open!"
 
 style:
   label: "Topic style"
@@ -214,3 +238,29 @@ admin:
     save: "Save the order"
     saved: "The display order is saved."
     unsaved: "Order changed: remember to save."
+
+# A topic's poll (Poll): one question, a few answers, one vote per member.
+poll:
+  title: "Poll"
+  total: "{count, plural, =0 {No votes yet} one {# vote} other {# votes}}"
+  vote: "Vote for “{option}”"
+  your_vote: "your vote"
+  pick: "Pick your answer:"
+  login: "Log in to vote."
+  closed: "Poll closed: the topic is locked."
+  question_long: "A question fits in {{ limit }} characters."
+  question_blank: "You wrote answers: the poll needs its question."
+  options_count: "A poll has between {min} and {max} answers, one per line."
+  form:
+    legend: "Poll (optional)"
+    question: "Question"
+    question_placeholder: "Best fan site??"
+    question_help: "Leave empty for a topic without a poll."
+    options: "Answers"
+    options_placeholder: "One answer per line"
+    options_help: "Between 2 and 10 answers, one per line. They cannot be changed once the topic is posted."
+  flash:
+    voted: "Vote counted!"
+    already: "You have already voted in this poll."
+    no_choice: "Pick an answer."
+    closed: "This poll is closed."

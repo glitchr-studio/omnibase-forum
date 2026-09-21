@@ -7,6 +7,13 @@
  # beside the topic (see .forum-thread-grid).
  #}
 {% set layout_has_side = block('forum_side', '@Forum/client/layout.html.twig') is defined %}
+{% set layout_has_lead = block('forum_lead', '@Forum/client/layout.html.twig') is defined %}
+{% set retro = topic_style|default('retro') == 'retro' %}
+{# The 2005 head is bare type on the page, so it leads the page across both
+   columns: left in the message column it stood above the white box, and the
+   timeline beside it started a head's height higher than the first message.
+   The cards' head is itself a card, and lines up with the column as it is. #}
+{% set head_leads = retro and layout_has_lead %}
 {% set has_icons = source('@Forum/client/_icon.html.twig', true) is not empty %}
 
 {% block forum_title %}{{ topic.title }}{% endblock %}
@@ -36,55 +43,16 @@
     {{ block('forum_timeline') }}
 {% endblock %}
 
+{% block forum_lead %}{% if head_leads %}{{ block('forum_topic_head') }}{% endif %}{% endblock %}
+
 {% block forum_topic %}
-    {% set can_moderate = is_granted('FORUM_MODERATE') %}
-    {% set can_edit_topic = is_granted('FORUM_EDIT', topic) %}
-
-    {% set retro = topic_style|default('retro') == 'retro' %}
     <article class="forum-topic is-style-{{ retro ? 'retro' : 'cartes' }}" id="topic-{{ topic.id }}">
-        <header class="forum-topic-head">
-            <h2 class="forum-topic-heading">
-                {% if topic.pinned %}<i class="fa-solid fa-thumbtack" title="{{ '@forum.topic.pinned'|trans }}"></i>{% endif %}
-                {% if topic.locked %}<i class="fa-solid fa-lock" title="{{ '@forum.topic.locked'|trans }}"></i>{% endif %}
-                {{ topic.title }}
-            </h2>
-            <div class="forum-topic-meta">
-                {% for tag in topic.tags %}
-                    <a class="forum-tag forum-tag-sm" href="{{ path('forum_tag', {slug: tag.slug}) }}" style="{{ tag.color ? '--tag:' ~ tag.color : '' }}">{{ tag }}</a>
-                {% endfor %}
-                <span class="forum-topic-stats">
-                    <i class="fa-regular fa-comment"></i> {{ topic.replies }}
-                    <i class="fa-regular fa-eye"></i> {{ topic.views }}
-                    <i class="fa-regular fa-heart"></i> <span data-forum-likes>{{ topic.likes|length }}</span>
-                </span>
-            </div>
-
-            <div class="forum-topic-actions">
-                {% if is_granted('ROLE_USER') %}
-                    <button type="button" class="forum-btn forum-btn-ghost{{ is_liked ? ' is-active' }}" data-forum-like data-like="{{ path('api_thread_like', {slug: topic.slug}) }}" data-unlike="{{ path('api_thread_unlike', {slug: topic.slug}) }}" aria-pressed="{{ is_liked ? 'true' : 'false' }}">
-                        <i class="fa-solid fa-heart"></i> <span>{{ (is_liked ? '@forum.topic.liked' : '@forum.topic.like')|trans }}</span>
-                    </button>
-                    <button type="button" class="forum-btn forum-btn-ghost{{ is_following ? ' is-active' }}" data-forum-follow data-follow="{{ path('api_thread_follow', {slug: topic.slug}) }}" data-unfollow="{{ path('api_thread_unfollow', {slug: topic.slug}) }}" aria-pressed="{{ is_following ? 'true' : 'false' }}">
-                        <i class="fa-solid fa-bell"></i> <span>{{ (is_following ? '@forum.topic.following' : '@forum.topic.follow')|trans }}</span>
-                    </button>
-                {% endif %}
-                {% if can_edit_topic %}
-                    <a class="forum-btn forum-btn-ghost" href="{{ path('forum_topic_edit', {slug: topic.slug}) }}"><i class="fa-solid fa-pen"></i> {{ '@forum.topic.edit'|trans }}</a>
-                {% endif %}
-                {% if can_moderate or can_edit_topic %}
-                <form class="forum-moderate" method="post" action="{{ path('forum_topic_moderate', {slug: topic.slug, action: 'pin'}) }}" data-forum-moderate>
-                    <input type="hidden" name="_token" value="{{ csrf_token('forum_moderate_' ~ topic.id) }}">
-                    {% if can_moderate %}
-                        <button class="forum-btn forum-btn-ghost" formaction="{{ path('forum_topic_moderate', {slug: topic.slug, action: topic.pinned ? 'unpin' : 'pin'}) }}"><i class="fa-solid fa-thumbtack"></i> {{ (topic.pinned ? '@forum.moderate.unpin' : '@forum.moderate.pin')|trans }}</button>
-                        <button class="forum-btn forum-btn-ghost" formaction="{{ path('forum_topic_moderate', {slug: topic.slug, action: topic.locked ? 'unlock' : 'lock'}) }}"><i class="fa-solid fa-{{ topic.locked ? 'lock-open' : 'lock' }}"></i> {{ (topic.locked ? '@forum.moderate.unlock' : '@forum.moderate.lock')|trans }}</button>
-                    {% endif %}
-                    <button class="forum-btn forum-btn-danger" formaction="{{ path('forum_topic_moderate', {slug: topic.slug, action: 'delete'}) }}" data-confirm="{{ '@forum.moderate.delete_confirm'|trans }}"><i class="fa-solid fa-trash"></i> {{ '@forum.moderate.delete'|trans }}</button>
-                </form>
-                {% endif %}
-            </div>
-        </header>
+        {% if not head_leads %}{{ block('forum_topic_head') }}{% endif %}
 
         {{ block('forum_pager') }}
+
+        {# The poll, when the topic opened with one: above the messages, as the 2004 BBS had it. #}
+        {% if topic.poll %}{% include '@Forum/client/topic/_poll.html.twig' %}{% endif %}
 
         {#
          # The 2005 box: the page's messages in one white box, its bar of
@@ -92,12 +60,36 @@
          # messages as rows under a thin rule, "Page n/N" at the foot.
          #}
         <div class="forum-topic-box">
-            {# The bar always heads the 2005 box; the cards only draw it when there is somewhere to go. #}
-            {% if retro or topic_previous or topic_next %}
-            <nav class="forum-topic-nav" aria-label="{{ '@forum.timeline.neighbours'|trans }}">
-                {% if topic_previous %}<a rel="prev" href="{{ path('forum_topic', {slug: topic_previous.slug}) }}">« {{ '@forum.timeline.previous_topic'|trans }}</a>{% else %}<span></span>{% endif %}
-                {% if topic_next %}<a rel="next" href="{{ path('forum_topic', {slug: topic_next.slug}) }}">{{ '@forum.timeline.next_topic'|trans }} »</a>{% else %}<span></span>{% endif %}
-            </nav>
+            {% set neighbours %}
+                {% if topic_previous or topic_next %}
+                <nav class="forum-topic-nav" aria-label="{{ '@forum.timeline.neighbours'|trans }}">
+                    {% if topic_previous %}<a rel="prev" href="{{ path('forum_topic', {slug: topic_previous.slug}) }}">« {{ '@forum.timeline.previous_topic'|trans }}</a>{% else %}<span></span>{% endif %}
+                    {% if topic_next %}<a rel="next" href="{{ path('forum_topic', {slug: topic_next.slug}) }}">{{ '@forum.timeline.next_topic'|trans }} »</a>{% else %}<span></span>{% endif %}
+                </nav>
+                {% endif %}
+            {% endset %}
+            {#
+             # The 2005 box is headed by its light-blue bar, and the topic's
+             # title, tags and counters are written in it - as the 2004 BBS
+             # wrote the subject in the head of its table - rather than in
+             # large pink type bare on the page's blue above the box. The
+             # previous/next links, when there are any, keep the bar's right
+             # end. The cards only draw the links, when there is somewhere to go.
+             #}
+            {#
+             # Without the title itself: the page already names the topic twice
+             # above the box (the trail, and each message's subject line), and a
+             # third time in large pink in the bar was one too many. The tags and
+             # the counters stay.
+             #}
+            {% if retro %}
+            <div class="forum-topic-bar">
+                {% set topic_heading = false %}
+                {{ block('forum_topic_title') }}
+                {{ neighbours }}
+            </div>
+            {% else %}
+                {{ neighbours }}
             {% endif %}
 
             {#
@@ -116,15 +108,17 @@
             {% if retro %}<p class="forum-topic-pagecount" data-forum-pagecount data-label="{{ '@forum.topic.page_of'|trans({page: '{page}', total: '{total}'}) }}">{{ '@forum.topic.page_of'|trans({page: posts.page, total: max(posts.totalPages, 1)}) }}</p>{% endif %}
         </div>
 
-        {# Under the box, as the 2005 page had them: a new topic on this board, and the lock when the topic is closed. #}
+        {#
+         # Under the box, the lock when the topic is closed. "Nouveau sujet" is
+         # no longer here: a new topic is started from its board's page
+         # (category.html.twig), not from inside someone else's discussion -
+         # under the box it hung on its own between the messages and the reply.
+         #}
+        {% if topic.locked %}
         <div class="forum-topic-badges">
-            {% if topic.category and is_granted('FORUM_POST', topic.category) %}
-                {% include '@Forum/client/_badge.html.twig' with {name: 'new_topic', href: path('forum_topic_new', {category: topic.category.slug}), title: '@forum.topic.new'|trans} %}
-            {% endif %}
-            {% if topic.locked %}
-                {% include '@Forum/client/_badge.html.twig' with {name: 'locked_topic', title: '@forum.topic.locked'|trans} %}
-            {% endif %}
+            {% include '@Forum/client/_badge.html.twig' with {name: 'locked_topic', title: '@forum.topic.locked'|trans} %}
         </div>
+        {% endif %}
 
         {{ block('forum_pager') }}
 
@@ -175,6 +169,45 @@
  # (_pager.html.twig), the same row of arrows and numbers the board, tag,
  # search and feed lists draw.
  #}
+{#
+ # The topic's head: its title, its tags and counters, and the reader's own
+ # buttons. Drawn in the page's lead (2005) or at the top of the message
+ # column (cards), so it carries the style itself - a rule for it cannot
+ # count on the <article> being its parent.
+ #}
+{% block forum_topic_head %}
+{% set can_moderate = is_granted('FORUM_MODERATE') %}
+{% set can_edit_topic = is_granted('FORUM_EDIT', topic) %}
+<header class="forum-topic-head is-style-{{ retro ? 'retro' : 'cartes' }}">
+    {# In 2005 the title is in the head of the box instead (forum_topic above). #}
+    {% if not retro %}{{ block('forum_topic_title') }}{% endif %}
+
+    <div class="forum-topic-actions">
+        {% if is_granted('ROLE_USER') %}
+            <button type="button" class="forum-btn forum-btn-ghost{{ is_liked ? ' is-active' }}" data-forum-like data-like="{{ path('api_thread_like', {slug: topic.slug}) }}" data-unlike="{{ path('api_thread_unlike', {slug: topic.slug}) }}" aria-pressed="{{ is_liked ? 'true' : 'false' }}">
+                <i class="fa-solid fa-heart"></i> <span>{{ (is_liked ? '@forum.topic.liked' : '@forum.topic.like')|trans }}</span>
+            </button>
+            <button type="button" class="forum-btn forum-btn-ghost{{ is_following ? ' is-active' }}" data-forum-follow data-follow="{{ path('api_thread_follow', {slug: topic.slug}) }}" data-unfollow="{{ path('api_thread_unfollow', {slug: topic.slug}) }}" aria-pressed="{{ is_following ? 'true' : 'false' }}">
+                <i class="fa-solid fa-bell"></i> <span>{{ (is_following ? '@forum.topic.following' : '@forum.topic.follow')|trans }}</span>
+            </button>
+        {% endif %}
+        {% if can_edit_topic %}
+            <a class="forum-btn forum-btn-ghost" href="{{ path('forum_topic_edit', {slug: topic.slug}) }}"><i class="fa-solid fa-pen"></i> {{ '@forum.topic.edit'|trans }}</a>
+        {% endif %}
+        {% if can_moderate or can_edit_topic %}
+        <form class="forum-moderate" method="post" action="{{ path('forum_topic_moderate', {slug: topic.slug, action: 'pin'}) }}" data-forum-moderate>
+            <input type="hidden" name="_token" value="{{ csrf_token('forum_moderate_' ~ topic.id) }}">
+            {% if can_moderate %}
+                <button class="forum-btn forum-btn-ghost" formaction="{{ path('forum_topic_moderate', {slug: topic.slug, action: topic.pinned ? 'unpin' : 'pin'}) }}"><i class="fa-solid fa-thumbtack"></i> {{ (topic.pinned ? '@forum.moderate.unpin' : '@forum.moderate.pin')|trans }}</button>
+                <button class="forum-btn forum-btn-ghost" formaction="{{ path('forum_topic_moderate', {slug: topic.slug, action: topic.locked ? 'unlock' : 'lock'}) }}"><i class="fa-solid fa-{{ topic.locked ? 'lock-open' : 'lock' }}"></i> {{ (topic.locked ? '@forum.moderate.unlock' : '@forum.moderate.lock')|trans }}</button>
+            {% endif %}
+            <button class="forum-btn forum-btn-danger" formaction="{{ path('forum_topic_moderate', {slug: topic.slug, action: 'delete'}) }}" data-confirm="{{ '@forum.moderate.delete_confirm'|trans }}"><i class="fa-solid fa-trash"></i> {{ '@forum.moderate.delete'|trans }}</button>
+        </form>
+        {% endif %}
+    </div>
+</header>
+{% endblock %}
+
 {% block forum_pager %}
 {% include '@Forum/client/_pager.html.twig' with {pagination: posts, route: 'forum_topic', params: {slug: topic.slug}} %}
 {% endblock %}
@@ -225,4 +258,31 @@
     {{ parent() }}
     <script src="{{ asset('bundles/forum/js/forum.js') }}" defer></script>
     <script src="{{ asset('bundles/forum/js/forum-thread.js') }}" defer></script>
+{% endblock %}
+
+{# The topic's title, its tags and its counters: in the cards' head, or in the 2005 box's bar. #}
+{% block forum_topic_title %}
+<div class="forum-topic-title">
+    {% if topic_heading ?? true %}
+    <h2 class="forum-topic-heading">
+        {% if topic.pinned %}<i class="fa-solid fa-thumbtack" title="{{ '@forum.topic.pinned'|trans }}"></i>{% endif %}
+        {% if topic.locked %}<i class="fa-solid fa-lock" title="{{ '@forum.topic.locked'|trans }}"></i>{% endif %}
+        {{ topic.title }}
+    </h2>
+    {% else %}
+        {# The title is left out here, but a pinned or locked topic still says so. #}
+        {% if topic.pinned %}<i class="fa-solid fa-thumbtack" title="{{ '@forum.topic.pinned'|trans }}"></i>{% endif %}
+        {% if topic.locked %}<i class="fa-solid fa-lock" title="{{ '@forum.topic.locked'|trans }}"></i>{% endif %}
+    {% endif %}
+    <div class="forum-topic-meta">
+        {% for tag in topic.tags %}
+            <a class="forum-tag forum-tag-sm" href="{{ path('forum_tag', {slug: tag.slug}) }}" style="{{ tag.color ? '--tag:' ~ tag.color : '' }}">{{ tag }}</a>
+        {% endfor %}
+        <span class="forum-topic-stats">
+            <i class="fa-regular fa-comment"></i> {{ topic.replies }}
+            <i class="fa-regular fa-eye"></i> {{ topic.views }}
+            <i class="fa-regular fa-heart"></i> <span data-forum-likes>{{ topic.likes|length }}</span>
+        </span>
+    </div>
+</div>
 {% endblock %}

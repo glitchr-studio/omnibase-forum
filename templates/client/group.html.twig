@@ -13,8 +13,8 @@
                 {% set c = counts[board.id]|default({topics: 0, replies: 0}) %}
                 {# Same badge rule as the index's board rows, popular boards included. #}
                 {% set board_hot = hot is defined and hot[board.id]|default(false) %}
-                {% set state = board.locked ? 'lock' : (board.requiredRole ? 'announce' : (board_hot ? 'hot' : 'default')) %}
-                {% set state_title = {lock: '@forum.board.locked', announce: '@forum.board.private', hot: '@forum.folder.hot_board'}[state]|default('') %}
+                {% set folder = forum_board_folder(board, last[board.id]|default(null), board_hot) %}{% set state = folder.state %}
+                {% set state_title = folder.title %}
                 <li class="forum-board{{ board.locked ? ' is-locked' }}{{ board_hot ? ' is-hot' }}">
                     <a class="forum-board-icon" href="{{ path('forum_category', {slug: board.slug}) }}" aria-hidden="true" tabindex="-1">
                         {% include '@Forum/client/_folder.html.twig' with {state: state, size: 40, title: state_title ? state_title|trans : ''} %}

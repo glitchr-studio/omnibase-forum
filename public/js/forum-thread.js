@@ -498,22 +498,19 @@
     // what carries a screen reader and the Tab key to the message, the way a
     // real fragment navigation would.
     function point(el) {
-        if (marked) { marked.classList.remove('is-target'); marked.style.boxShadow = ''; }
+        if (marked) { marked.classList.remove('is-target'); }
         clearTimeout(markTimer);
         marked = el;
         el.setAttribute('tabindex', '-1');
         el.focus({ preventScroll: true });
+        // The stylesheet rings .is-target as it rings :target (forum.css), which
+        // only a real fragment navigation sets - not the replaceState above.
+        // No ring of its own here: it used to add one whenever the stylesheet's
+        // was not a box-shadow, and once the ring became an outline the post
+        // wore two for these two seconds.
         el.classList.add('is-target');
-        // The stylesheet rings :target, which only a real fragment navigation
-        // sets - not the replaceState above. Until it rings .is-target too,
-        // the ring is worn here so the message is never merely "somewhere on
-        // screen"; when the rule lands this does nothing.
-        if (window.getComputedStyle(el).boxShadow === 'none') {
-            el.style.boxShadow = '0 0 0 3px var(--forum-pink, #FF3399)';
-        }
         markTimer = setTimeout(function () {
             el.classList.remove('is-target');
-            el.style.boxShadow = '';
             marked = null;
         }, 2200);
     }

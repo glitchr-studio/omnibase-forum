@@ -24,7 +24,7 @@
 {% set node = node ?? null %}
 {% set current_page = current_page ?? 1 %}
 {% set outline_index = outline_index ?? {} %}
-{# The 2005 look (topic/show.html.twig's `retro`): the member drawn large with the day under, a subject line on every message. #}
+{# The 2005 look (topic/show.html.twig's `retro`): the member drawn large with the day under. #}
 {% set retro = retro ?? true %}
 
 {# A link to another post of the topic, on whichever page it is. #}
@@ -32,7 +32,10 @@
     {{ entry.page != current_page ? path('forum_topic', {slug: topic.slug, page: entry.page > 1 ? entry.page : null}) }}#post-{{ entry.id }}
 {%- endmacro %}
 
-<li class="forum-post{{ post.isFirst ? ' is-first' }}{{ post.deleted ? ' is-deleted' }}{{ node and node.branch ? ' is-branch' }}" id="post-{{ post.id }}">
+{# How many forks from the trunk this message is (TopicController::outline()'s
+   `level`, not `depth`, which is the place along a branch): the cards step in
+   by it, so a reply is read under the message it answers. #}
+<li class="forum-post{{ post.isFirst ? ' is-first' }}{{ post.deleted ? ' is-deleted' }}{{ node and node.branch ? ' is-branch' }}" id="post-{{ post.id }}"{% if node and node.level %} style="--post-level: {{ node.level }}"{% endif %}>
     {# The 2005 column: the member, their name in the rank's colour, the day and the hour under it. #}
     <aside class="forum-post-author">
         {# The large box in both styles: the 2005 square is what a member is
@@ -50,10 +53,12 @@
     <div class="forum-post-body">
         <header class="forum-post-head">
             <a class="forum-post-minipost" href="#post-{{ post.id }}" title="{{ '@forum.post.permalink'|trans }}" aria-label="{{ '@forum.post.permalink'|trans }}">{{ ui.icon('minipost', 'message', has_icons) }}</a>
-            {% if retro %}
-                {# The subject line every message had in 2005: the topic's title, "Re:" on the replies. #}
-                <a class="forum-post-subject" href="#post-{{ post.id }}">{{ post.isFirst ? topic.title : '@forum.post.re'|trans({title: topic.title}) }}</a>
-            {% endif %}
+            {#
+             # No subject line on each message, though the 2005 board had one
+             # ("Re: <the topic's title>"): the title is already the page's
+             # trail and its heading, and a third copy on every message was
+             # the topic's name written out more often than anything said in it.
+             #}
             <a class="forum-post-number" href="#post-{{ post.id }}">#{{ node ? node.number : post.number }}</a>
             {% if not retro %}<time datetime="{{ post.createdAt|date('c') }}">{{ post.createdAt|datetime('d MMMM yyyy, HH:mm') }}</time>{% endif %}
 

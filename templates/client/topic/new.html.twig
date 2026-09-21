@@ -24,6 +24,13 @@
         {{ form_row(form.category) }}
         {{ form_row(form.tags) }}
         {{ form_row(form.content) }}
+        {# The poll: folded away unless it has something in it (a form sent back with errors). #}
+        {% set poll_open = form.pollQuestion.vars.value or form.pollOptions.vars.value or not form.pollQuestion.vars.valid or not form.pollOptions.vars.valid %}
+        <details class="forum-form-poll"{{ poll_open ? ' open' }}>
+            <summary><i class="fa-solid fa-square-poll-horizontal" aria-hidden="true"></i> {{ '@forum.poll.form.legend'|trans }}</summary>
+            {{ form_row(form.pollQuestion) }}
+            {{ form_row(form.pollOptions) }}
+        </details>
         <div class="forum-form-actions">
             <button type="submit" class="forum-btn forum-btn-primary"><i class="fa-solid fa-paper-plane"></i> {{ '@forum.topic.publish'|trans }}</button>
             <a class="forum-btn forum-btn-ghost" href="{{ category ? path('forum_category', {slug: category.slug}) : path('forum_index') }}">{{ '@forum.form.cancel'|trans }}</a>

@@ -1,0 +1,62 @@
+{#
+ # A topic's poll (Base\Forum\Entity\Poll), above its messages - where the
+ # 2004 BBS had its "sondage".
+ #
+ # Before a member has voted, the answers are the buttons: one click on an
+ # answer is the vote, and no result shows yet, so what the others chose does
+ # not lean on the choice. After it - and for a visitor, or once the topic is
+ # locked - the results: a bar per answer, its share and its count, the
+ # leading answer marked, and the reader's own answer said as theirs.
+ #}
+{% set poll = topic.poll %}
+{% set counts = poll.counts %}
+{% set total = poll.total %}
+{% set mine = poll.choiceOf(app.user) %}
+{% set can_vote = app.user and mine is null and poll.open %}
+{% set top = counts ? max(counts) : 0 %}
+<section class="forum-poll{{ can_vote ? ' is-voting' }}" id="poll" aria-labelledby="poll-question-{{ poll.id }}">
+    <header class="forum-poll-head">
+        <span class="forum-poll-kicker"><i class="fa-solid fa-square-poll-horizontal" aria-hidden="true"></i> {{ '@forum.poll.title'|trans }}</span>
+        <h3 class="forum-poll-question" id="poll-question-{{ poll.id }}">{{ poll.question }}</h3>
+    </header>
+
+    {% if can_vote %}
+    <form class="forum-poll-form" method="post" action="{{ path('forum_topic_vote', {slug: topic.slug}) }}">
+        <input type="hidden" name="_token" value="{{ csrf_token('forum_vote_' ~ poll.id) }}">
+        <p class="forum-poll-pick">{{ '@forum.poll.pick'|trans }}</p>
+    {% endif %}
+
+    <ol class="forum-poll-options">
+        {% for option in poll.options %}
+            {% set count = counts[loop.index0] ?? 0 %}
+            {% set share = total ? (count * 100 / total)|round : 0 %}
+            {% set is_mine = mine is not null and mine == loop.index0 %}
+            <li class="forum-poll-option{{ is_mine ? ' is-mine' }}{{ not can_vote and total and count == top ? ' is-top' }}" style="--share: {{ share }}%">
+                {% if can_vote %}
+                    <button type="submit" name="choice" value="{{ loop.index0 }}" class="forum-poll-row" title="{{ '@forum.poll.vote'|trans({option: option}) }}">
+                        <span class="forum-poll-mark" aria-hidden="true"></span>
+                        <span class="forum-poll-label">{{ option }}</span>
+                    </button>
+                {% else %}
+                    <div class="forum-poll-row">
+                        <span class="forum-poll-label">{{ option }}{% if is_mine %} <em class="forum-poll-mine"><i class="fa-solid fa-check" aria-hidden="true"></i> {{ '@forum.poll.your_vote'|trans }}</em>{% endif %}</span>
+                        <span class="forum-poll-bar" aria-hidden="true"><span></span></span>
+                        <span class="forum-poll-share">{{ share }}%</span>
+                        <span class="forum-poll-count">[ {{ count }} ]</span>
+                    </div>
+                {% endif %}
+            </li>
+        {% endfor %}
+    </ol>
+
+    {% if can_vote %}</form>{% endif %}
+
+    <footer class="forum-poll-foot">
+        <b>{{ '@forum.poll.total'|trans({count: total}) }}</b>
+        {% if not app.user %}
+            <span><a href="{{ path('security_login') }}">{{ '@forum.poll.login'|trans }}</a></span>
+        {% elseif not poll.open %}
+            <span><i class="fa-solid fa-lock" aria-hidden="true"></i> {{ '@forum.poll.closed'|trans }}</span>
+        {% endif %}
+    </footer>
+</section>

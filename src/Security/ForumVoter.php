@@ -20,6 +20,8 @@ use Symfony\Bundle\SecurityBundle\Security;
  *   FORUM_REPLY     a topic: signed in, topic and board not locked
  *   FORUM_EDIT      a topic or post: its author, or a moderator
  *   FORUM_MODERATE  anything: the configured moderator role
+ *   FORUM_ADMIN     opening a board or a group from the site: the configured
+ *                   admin role (forum.admin_role)
  */
 final class ForumVoter extends Voter
 {
@@ -28,16 +30,18 @@ final class ForumVoter extends Voter
     public const REPLY = 'FORUM_REPLY';
     public const EDIT = 'FORUM_EDIT';
     public const MODERATE = 'FORUM_MODERATE';
+    public const ADMIN = 'FORUM_ADMIN';
 
     public function __construct(
         private readonly Security $security,
         #[Autowire('%forum.moderator_role%')] private readonly string $moderatorRole = 'ROLE_ADMIN',
+        #[Autowire('%forum.admin_role%')] private readonly string $adminRole = 'ROLE_SUPER_ADMIN',
     ) {
     }
 
     protected function supports(string $attribute, mixed $subject): bool
     {
-        return in_array($attribute, [self::READ, self::POST, self::REPLY, self::EDIT, self::MODERATE], true);
+        return in_array($attribute, [self::READ, self::POST, self::REPLY, self::EDIT, self::MODERATE, self::ADMIN], true);
     }
 
     protected function voteOnAttribute(string $attribute, mixed $subject, TokenInterface $token, ?Vote $vote = null): bool
@@ -48,6 +52,9 @@ final class ForumVoter extends Voter
 
         if (self::MODERATE === $attribute) {
             return $isModerator;
+        }
+        if (self::ADMIN === $attribute) {
+            return $this->security->isGranted($this->adminRole);
         }
 
         $category = match (true) {

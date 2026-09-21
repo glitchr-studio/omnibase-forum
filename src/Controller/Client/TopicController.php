@@ -4,6 +4,8 @@ namespace Base\Forum\Controller\Client;
 
 use Base\Attributes\Attribute\Sitemap;
 use Base\Forum\Entity\Category;
+use Base\Forum\Entity\Poll;
+use Base\Forum\Entity\PollVote;
 use Base\Forum\Entity\Post;
 use Base\Forum\Entity\Topic;
 use Base\Forum\Form\Model\PostModel;
@@ -16,6 +18,7 @@ use Base\Forum\Repository\TopicRepository;
 use Base\Forum\Security\ForumVoter;
 use Base\Forum\Service\MarkdownRenderer;
 use Base\Service\PaginatorInterface;
+use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
@@ -111,6 +114,9 @@ class TopicController extends AbstractController
                 }
                 $post = new Post($this->getUser(), $model->content);
                 $topic->addPost($post);
+                if ($model->hasPoll()) {
+                    new Poll($topic, trim($model->pollQuestion), $model->pollOptionList());
+                }
 
                 $this->entityManager->persist($topic);
                 $this->entityManager->flush();
@@ -258,6 +264,47 @@ class TopicController extends AbstractController
         return $this->redirectToRoute('forum_topic', ['slug' => $slug]);
     }
 
+    /**
+     * A vote on the topic's poll. One per member (PollVote's unique index),
+     * final once cast, as the 2004 BBS had it; none on a locked topic.
+     */
+    #[Route('/bbs/{slug}/voter', name: 'forum_topic_vote', methods: ['POST'])]
+    #[IsGranted('ROLE_USER')]
+    public function Vote(Request $request, string $slug): Response
+    {
+        $topic = $this->topics->findOneBySlug($slug);
+        $poll = $topic?->getPoll();
+        if (!$topic || !$poll) {
+            throw $this->createNotFoundException('Unknown poll.');
+        }
+        $this->denyAccessUnlessGranted(ForumVoter::READ, $topic);
+
+        if (!$this->isCsrfTokenValid('forum_vote_' . $poll->getId(), (string) $request->request->get('_token'))) {
+            throw $this->createAccessDeniedException('Invalid token.');
+        }
+        $back = $this->redirect($this->generateUrl('forum_topic', ['slug' => $slug]) . '#poll');
+
+        $choice = $request->request->getInt('choice', -1);
+        if (!$poll->isOpen()) {
+            $this->addFlash('error', $this->translator->trans('@forum.poll.flash.closed'));
+        } elseif (!$poll->hasOption($choice)) {
+            $this->addFlash('error', $this->translator->trans('@forum.poll.flash.no_choice'));
+        } elseif ($poll->getChoiceOf($this->getUser()) !== null) {
+            $this->addFlash('error', $this->translator->trans('@forum.poll.flash.already'));
+        } else {
+            try {
+                $this->entityManager->persist(new PollVote($poll, $this->getUser(), $choice));
+                $this->entityManager->flush();
+                $this->addFlash('success', $this->translator->trans('@forum.poll.flash.voted'));
+            } catch (UniqueConstraintViolationException) {
+                // A second click that arrived with the first: the first one counted.
+                $this->addFlash('error', $this->translator->trans('@forum.poll.flash.already'));
+            }
+        }
+
+        return $back;
+    }
+
     #[Route('/bbs/{slug}/modifier', name: 'forum_topic_edit')]
     #[IsGranted('ROLE_USER')]
     public function Edit(Request $request, string $slug): Response
@@ -341,6 +388,19 @@ class TopicController extends AbstractController
         $this->addFlash('success', $this->translator->trans('@forum.flash.moderated'));
 
         return $this->redirectToRoute('forum_topic', ['slug' => $topic->getSlug()]);
+    }
+
+    /** A message's own address: its place in its topic, on whichever page it is. */
+    #[Route('/bbs/message/{id}', name: 'forum_post', requirements: ['id' => '\d+'], methods: ['GET'])]
+    public function ShowPost(int $id): Response
+    {
+        $post = $this->posts->find($id);
+        if (!$post || !$post->getTopic()) {
+            throw $this->createNotFoundException('Unknown post.');
+        }
+        $this->denyAccessUnlessGranted(ForumVoter::READ, $post->getTopic());
+
+        return $this->redirectToPost($post);
     }
 
     #[Route('/bbs/message/{id}/modifier', name: 'forum_post_edit', requirements: ['id' => '\d+'])]

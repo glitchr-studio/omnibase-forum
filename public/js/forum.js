@@ -3,7 +3,8 @@
  *   - like / follow buttons calling base-bundle's /api/thread/{slug}/... endpoints;
  *   - a confirm() on the destructive moderation buttons;
  *   - a tiny Markdown toolbar on every [data-forum-editor] textarea;
- *   - "Sauter vers", the board jump at the foot of a topic.
+ *   - "Sauter vers", the board jump at the foot of a topic;
+ *   - a message edited where it is, in its topic ("Modifier").
  *
  * A site that swaps pages in place (transparent.js on Chapaland) brings new
  * buttons and editors without a new document, and runs this script again when
@@ -111,6 +112,103 @@
         if (!select || !select.value) return;
         e.preventDefault();
         window.location.href = select.value;
+    }, true);
+
+    /*
+     * EDITING A MESSAGE WHERE IT IS. "Modifier" on a message opens its form in the
+     * message's place, in the topic, instead of on a page of its own - the edit
+     * page is still what the link points at, for a reader without this script,
+     * and it is where the form comes from: fetched, its own form taken out of it,
+     * so the rules, the token and the errors are the server's and nothing here
+     * duplicates them. Saved, the server answers with the topic (it redirects to
+     * the message), and the message's body is swapped for its new one - the
+     * author's column is left as it is, so their chibi is not drawn again.
+     *
+     * On window, capturing: the page-swapping script on Chapaland (transparent.js)
+     * listens on the document, and would take the click, or the form, somewhere
+     * else first.
+     */
+    var parse = function (html) { return new DOMParser().parseFromString(html, 'text/html'); };
+
+    function openEditor(post, content, form, action) {
+        form.classList.add('forum-inline-edit');
+        form.classList.remove('forum-form-card');
+        form.setAttribute('action', action);
+        form.dataset.forumInline = '';
+        content.hidden = true;
+        content.after(form);
+        scan();   // its Markdown toolbar now, not on the next frame
+        var area = form.querySelector('textarea');
+        if (area) {
+            area.focus();
+            area.setSelectionRange(area.value.length, area.value.length);
+        }
+        var cancel = form.querySelector('.forum-form-actions .forum-btn-ghost');
+        if (cancel) cancel.addEventListener('click', function (e) {
+            e.preventDefault();
+            form.remove();
+            content.hidden = false;
+        });
+    }
+
+    function saveEditor(form) {
+        var post = form.closest('.forum-post');
+        var content = post && post.querySelector('.forum-post-content');
+        var submit = form.querySelector('[type=submit]');
+        if (submit) submit.disabled = true;
+
+        fetch(form.action, { method: 'POST', body: new FormData(form), credentials: 'same-origin' })
+            .then(function (r) { return r.text(); })
+            .then(function (html) {
+                var doc = parse(html);
+                var fresh = doc.getElementById(post.id);
+                var body = post.querySelector('.forum-post-body');
+                var freshBody = fresh && fresh.querySelector('.forum-post-body');
+                if (body && freshBody) {
+                    body.replaceWith(document.importNode(freshBody, true));
+                    return;
+                }
+                // Sent back: the same form with what was wrong with it.
+                var again = doc.querySelector('form.forum-form');
+                if (!again) throw new Error('no answer');
+                form.remove();
+                openEditor(post, content, document.importNode(again, true), form.action);
+            })
+            .catch(function () {
+                // Whatever went wrong, the page the link names still works.
+                form.submit();
+            });
+    }
+
+    window.addEventListener('click', function (e) {
+        var link = e.target && e.target.closest ? e.target.closest('.forum-post a.forum-post-tool[href$="/modifier"]') : null;
+        if (!link || e.metaKey || e.ctrlKey || e.shiftKey || e.button) return;
+        var post = link.closest('.forum-post');
+        var content = post && post.querySelector('.forum-post-content');
+        if (!content) return;
+        e.preventDefault();
+        e.stopPropagation();
+        var open = post.querySelector('form[data-forum-inline]');
+        if (open) { var a = open.querySelector('textarea'); if (a) a.focus(); return; }
+
+        link.classList.add('is-busy');
+        fetch(link.href, { credentials: 'same-origin' })
+            .then(function (r) { return r.ok ? r.text() : Promise.reject(r.status); })
+            .then(function (html) {
+                var form = parse(html).querySelector('form.forum-form');
+                if (!form) throw new Error('no form');
+                openEditor(post, content, document.importNode(form, true), link.href);
+            })
+            .catch(function () { window.location.href = link.href; })
+            .then(function () { link.classList.remove('is-busy'); });
+    }, true);
+
+    window.addEventListener('submit', function (e) {
+        var form = e.target && e.target.closest ? e.target.closest('form[data-forum-inline]') : null;
+        if (!form) return;
+        e.preventDefault();
+        e.stopPropagation();
+        saveEditor(form);
     }, true);
 
     var queued = false;

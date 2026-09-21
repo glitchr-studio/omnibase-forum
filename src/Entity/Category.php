@@ -60,6 +60,15 @@ class Category implements LinkableInterface, IconizeInterface
     #[ORM\Column(type: 'boolean')]
     protected bool $locked = false;
 
+    /**
+     * A board of announcements ("Annonce", "Messages Officiels"): it and its
+     * topics wear the announcement badge, and the flat view heads its feed
+     * with its latest topics. Independent of `locked`, which only says members
+     * no longer start topics there.
+     */
+    #[ORM\Column(type: 'boolean', options: ['default' => false])]
+    protected bool $announcement = false;
+
     /** Role required to READ the board; null means everyone. The old "BBS Modos"/"BBS Créateurs". */
     #[ORM\Column(type: 'string', length: 64, nullable: true)]
     protected ?string $requiredRole = null;
@@ -133,6 +142,9 @@ class Category implements LinkableInterface, IconizeInterface
 
     public function isLocked(): bool { return $this->locked; }
     public function setLocked(bool $locked): self { $this->locked = $locked; return $this; }
+
+    public function isAnnouncement(): bool { return $this->announcement; }
+    public function setAnnouncement(bool $announcement): self { $this->announcement = $announcement; return $this; }
 
     public function getRequiredRole(): ?string { return $this->requiredRole; }
     public function setRequiredRole(?string $requiredRole): self { $this->requiredRole = $requiredRole ?: null; return $this; }

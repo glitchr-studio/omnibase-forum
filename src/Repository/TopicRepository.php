@@ -122,10 +122,11 @@ class TopicRepository extends ThreadRepository
     }
 
     /**
-     * The announcements of the flat view: the latest topics of the boards
-     * only the staff write in (locked boards, such as "Messages Officiels").
+     * The announcements of the flat view: the latest topics of the
+     * announcement boards (Category::$announcement - "Annonce", "Messages
+     * Officiels").
      *
-     * @param int[] $boardIds the readable locked boards
+     * @param int[] $boardIds the readable announcement boards
      * @return Topic[]
      */
     public function findAnnouncements(array $boardIds, int $limit = 2): array

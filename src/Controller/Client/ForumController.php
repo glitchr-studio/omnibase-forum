@@ -5,6 +5,8 @@ namespace Base\Forum\Controller\Client;
 use Base\Attributes\Attribute\Sitemap;
 use Base\Entity\Thread\Tag;
 use Base\Forum\Entity\Category;
+use Base\Forum\Form\Model\CategoryModel;
+use Base\Forum\Form\Type\CategoryType;
 use Base\Forum\Repository\CategoryRepository;
 use Base\Forum\Repository\TopicRepository;
 use Base\Forum\Security\ForumVoter;
@@ -15,6 +17,7 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Contracts\Translation\TranslatorInterface;
 
 /**
  * The reading side of the forum: the board index, a board, a tag, the
@@ -31,6 +34,7 @@ class ForumController extends AbstractController
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
         private readonly PaginatorInterface $paginator,
+        private readonly TranslatorInterface $translator,
         #[Autowire('%forum.topics_per_page%')] private readonly int $topicsPerPage = 20,
         // phpBB's hot_threshold: the replies from which a topic is popular,
         // and with it the board that holds it.
@@ -63,13 +67,13 @@ class ForumController extends AbstractController
         // Boards the visitor may read; the latest-activity feed is filtered
         // to them so a private board never leaks its titles.
         $readable = [];
-        $locked = [];
+        $announcing = [];
         foreach ($groups as $group) {
             foreach ($group->getChildren() as $board) {
                 if ($this->isGranted(ForumVoter::READ, $board)) {
                     $readable[] = $board->getId();
-                    if ($board->isLocked()) {
-                        $locked[] = $board->getId();
+                    if ($board->isAnnouncement()) {
+                        $announcing[] = $board->getId();
                     }
                 }
             }
@@ -109,7 +113,7 @@ class ForumController extends AbstractController
                 'view' => $view,
                 'sort' => $sort,
                 'groups' => $groups,
-                'announcements' => $this->topics->findAnnouncements($locked),
+                'announcements' => $this->topics->findAnnouncements($announcing),
                 'pinned' => $this->topics->findPinned($readable),
                 'latest' => $latest,
                 'tags' => $this->topics->findTagUsage(),
@@ -155,6 +159,8 @@ class ForumController extends AbstractController
                 'group' => $category,
                 'counts' => $this->topics->countPerCategory(),
                 'hot' => $this->topics->findHotCategoryIds($this->hotThreshold),
+                // Each board's latest message, which wakes its folder badge.
+                'last' => $this->topics->findLastPerCategory(),
             ]);
         }
 
@@ -167,7 +173,53 @@ class ForumController extends AbstractController
             'category' => $category,
             'topics' => $topics,
             'tags' => $this->topics->findTagUsage(),
+            // The head's folder badge reads as the board's row does on the index.
+            'board_last' => $this->topics->findLastPerCategory()[$category->getId()] ?? null,
+            'board_hot' => (bool) ($this->topics->findHotCategoryIds($this->hotThreshold)[$category->getId()] ?? false),
         ]));
+    }
+
+    /**
+     * "Nouveau forum": a board opened from the BBS itself, for FORUM_ADMIN
+     * (forum.admin_role). ?dans=<group slug> chooses its group; left without
+     * one, it is a new group. It lands last in its group - the order page
+     * (/admin/bbs/ordre) moves it, and the back office's CRUD has the rest.
+     *
+     * Declared with a priority: "/bbs/{slug}" would take "nouveau-forum" for a topic.
+     */
+    #[Route('/bbs/nouveau-forum', name: 'forum_category_new', priority: 5)]
+    public function CategoryNew(Request $request): Response
+    {
+        $this->denyAccessUnlessGranted(ForumVoter::ADMIN);
+
+        $model = new CategoryModel();
+        $within = $this->categories->findOneBySlug((string) $request->query->get('dans', ''));
+        if ($within && $within->isGroup()) {
+            $model->parent = $within;
+        }
+
+        $form = $this->createForm(CategoryType::class, $model);
+        $form->handleRequest($request);
+
+        if ($form->isSubmitted() && $form->isValid()) {
+            $category = new Category(trim($model->title), $model->parent);
+            $category->setDescription(trim((string) $model->description) ?: null);
+            $category->setAnnouncement($model->announcement);
+            $siblings = $category->getParent()?->getChildren()->toArray() ?? $this->categories->findBy(['parent' => null]);
+            // Tens, as the order page numbers them (OrderController): room to slot one in between later.
+            $category->setPosition(10 + max([0, ...array_map(fn (Category $c) => $c->getPosition(), $siblings)]));
+
+            $this->entityManager->persist($category);
+            $this->entityManager->flush();
+
+            $this->addFlash('success', $this->translator->trans($category->isGroup() ? '@forum.flash.group_created' : '@forum.flash.board_created', ['title' => $category->getTitle()]));
+
+            return $this->redirectToRoute('forum_category', ['slug' => $category->getSlug()]);
+        }
+
+        return $this->render('@Forum/client/category_new.html.twig', [
+            'form' => $form->createView(),
+        ]);
     }
 
     #[Route('/bbs/t/{slug}', name: 'forum_tag')]

@@ -54,6 +54,10 @@ class Topic extends Thread implements LinkableInterface
     #[ORM\JoinColumn(onDelete: 'SET NULL')]
     protected ?User $lastPoster = null;
 
+    /** The topic's poll, when it was opened with one (see Poll). */
+    #[ORM\OneToOne(targetEntity: Poll::class, mappedBy: 'topic', cascade: ['persist', 'remove'])]
+    protected ?Poll $poll = null;
+
     public function __construct(?User $owner = null, ?Category $category = null, ?string $title = null)
     {
         parent::__construct($owner, null, $title);
@@ -134,6 +138,9 @@ class Topic extends Thread implements LinkableInterface
 
     public function getLastPostAt(): ?\DateTimeInterface { return $this->lastPostAt; }
     public function setLastPostAt(?\DateTimeInterface $lastPostAt): self { $this->lastPostAt = $lastPostAt; return $this; }
+
+    public function getPoll(): ?Poll { return $this->poll; }
+    public function setPoll(?Poll $poll): self { $this->poll = $poll; return $this; }
 
     public function getLastPoster(): ?User { return $this->lastPoster; }
     public function setLastPoster(?User $lastPoster): self { $this->lastPoster = $lastPoster; return $this; }

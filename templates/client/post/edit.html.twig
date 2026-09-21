@@ -15,8 +15,10 @@
         </div>
     </section>
 
-    {{ form_start(form, {attr: {class: 'forum-form'}}) }}
-        {{ form_row(form.content) }}
+    {# A card like the other forms, and the message called a message: the type is the reply's,
+       and "Ta réponse" over a message being corrected was the wrong word. #}
+    {{ form_start(form, {attr: {class: 'forum-form forum-form-card'}}) }}
+        {{ form_row(form.content, {label: '@forum.form.content', attr: form.content.vars.attr|merge({placeholder: '@forum.form.content_placeholder'})}) }}
         <div class="forum-form-actions">
             <button type="submit" class="forum-btn forum-btn-primary"><i class="fa-solid fa-check"></i> {{ '@forum.form.save'|trans }}</button>
             <a class="forum-btn forum-btn-ghost" href="{{ path('forum_topic', {slug: topic.slug}) }}#post-{{ post.id }}">{{ '@forum.form.cancel'|trans }}</a>

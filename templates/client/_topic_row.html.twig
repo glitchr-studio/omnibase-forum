@@ -6,16 +6,15 @@
  # Variables: topic, show_category (bool), page (the list page it belongs to).
  #}
 {#
- # phpBB's folder precedence, top down: an announcement (a topic in a
- # board only the staff writes in, the same reading the feed view
- # gives them), a post-it, a locked topic, a popular one, then the
- # plain folder. "Popular" is the site's own forum.hot_threshold,
- # asked of the extension rather than written as a number here.
+ # The folder badge (ForumTwigExtension::topicFolder): an announcement, a
+ # post-it, a locked topic, a popular one, then the plain folder - the last
+ # three asleep ("zzz") or awake (a speech bubble) after forum.active_hours.
  #}
 {% set hot = forum_is_hot(topic) %}
-{% set announce = topic.category and topic.category.locked %}
-{% set state = announce ? 'announce' : (topic.pinned ? 'sticky' : (topic.locked ? 'lock' : (hot ? 'hot' : 'default'))) %}
-{% set state_title = {announce: '@forum.folder.announce', sticky: '@forum.topic.pinned', lock: '@forum.topic.locked', hot: '@forum.folder.hot'}[state]|default('') %}
+{% set announce = topic.category and topic.category.announcement %}
+{% set folder = forum_topic_folder(topic) %}
+{% set state = folder.state %}
+{% set state_title = folder.title %}
 <tr class="forum-topic-row{{ announce ? ' is-announce' }}{{ topic.pinned ? ' is-pinned' }}{{ topic.locked ? ' is-locked' }}{{ hot ? ' is-hot' }}" data-topic="{{ topic.id }}" data-page="{{ page|default(1) }}">
     <td class="col-topic">
         <div class="forum-topic-main">

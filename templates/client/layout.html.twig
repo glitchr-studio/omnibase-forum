@@ -59,6 +59,15 @@
     {% include 'flashbag.html.twig' ignore missing %}
 
     {#
+     # The page's lead, across both columns: what a page wants read before it,
+     # above the column that follows the reading. A topic in the 2005 style
+     # puts its title there - drawn bare, it is not a card the side column can
+     # line up with, and the column started level with the title while the
+     # messages began well under it (topic/show.html.twig).
+     #}
+    {% block forum_lead %}{% endblock %}
+
+    {#
      # The page, then the boxes beside it, both starting on the same line. A
      # page adds to the column with {{ parent() }} in `forum_side` (the topic's
      # timeline does); nothing above it clips, so a child may be sticky. A page

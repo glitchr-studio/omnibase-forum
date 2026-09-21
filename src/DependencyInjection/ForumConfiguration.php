@@ -32,10 +32,14 @@ class ForumConfiguration extends AbstractBaseConfiguration
                     ->info('Seconds a member must wait between two posts (phpBB called it flood_interval).')->end()
                 ->integerNode('hot_threshold')->min(1)->defaultValue(25)
                     ->info('Replies from which a topic is flagged "hot".')->end()
+                ->integerNode('active_hours')->min(1)->defaultValue(72)
+                    ->info('A board or topic with a message this recent is awake: its folder badge shows the "new" art instead of the sleeping "zzz".')->end()
                 ->integerNode('title_max_length')->min(10)->defaultValue(120)->end()
                 ->integerNode('content_max_length')->min(100)->defaultValue(20000)->end()
                 ->scalarNode('moderator_role')->defaultValue('ROLE_ADMIN')
                     ->info('Role allowed to pin, lock, move and delete any topic or post.')->end()
+                ->scalarNode('admin_role')->defaultValue('ROLE_SUPER_ADMIN')
+                    ->info('Role allowed to open new boards and groups from the site itself (the back office has its own CRUD).')->end()
             ->end()
         ->end();
 
