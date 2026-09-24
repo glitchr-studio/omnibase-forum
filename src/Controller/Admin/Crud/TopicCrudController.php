@@ -5,6 +5,7 @@ namespace Base\Forum\Controller\Admin\Crud;
 use Base\Admin\Controller\AbstractCrudController;
 use Base\Admin\Filter\Filters;
 use Base\Field\AssociationField;
+use Base\Field\SelectField;
 use Base\Field\BooleanField;
 use Base\Field\IdField;
 use Base\Field\NumberField;
@@ -36,7 +37,9 @@ class TopicCrudController extends AbstractCrudController
         yield TranslationField::new()->setFields(['title' => []]);
         yield SlugField::new('slug')->setColumns(6)->hideOnIndex();
         yield AssociationField::new('category')->setColumns(6);
-        yield AssociationField::new('tags')->setColumns(6)->hideOnIndex();
+        // A choice among the tags, several at once: AssociationField embeds ONE related entity's
+        // own fields (Tag's slug...), and fed the collection it rendered it into a text box.
+        yield SelectField::new('tags')->allowMultipleChoices()->setColumns(6)->hideOnIndex();
         yield BooleanField::new('pinned')->setColumns(3);
         yield BooleanField::new('locked')->setColumns(3);
         yield NumberField::new('views')->setColumns(3)->onlyOnIndex();
