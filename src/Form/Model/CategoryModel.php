@@ -21,4 +21,7 @@ class CategoryModel
 
     /** A board of announcements: it and its topics wear the megaphone badge. */
     public bool $announcement = false;
+
+    /** Whether topics opened in it may carry a poll. */
+    public bool $polls = true;
 }

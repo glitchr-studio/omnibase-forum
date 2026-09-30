@@ -22,6 +22,9 @@
             <div class="forum-topic-text">
                 <a class="forum-topic-title" href="{{ path('forum_topic', {slug: topic.slug}) }}">{{ topic.title }}</a>
                 <div class="forum-topic-meta">
+                    {% if topic.upcoming %}
+                        <span class="forum-upcoming-badge" title="{{ '@forum.list.upcoming_title'|trans({date: topic.publishedAt|datetime('d MMMM yyyy, HH:mm')}) }}"><i class="fa-solid fa-hourglass-half" aria-hidden="true"></i> {{ '@forum.list.upcoming'|trans }} · {{ topic.publishedAt|datetime('d MMM, HH:mm') }}</span>
+                    {% endif %}
                     {% for tag in topic.tags %}
                         <a class="forum-tag forum-tag-sm" href="{{ path('forum_tag', {slug: tag.slug}) }}" style="{{ tag.color ? '--tag:' ~ tag.color : '' }}">{{ tag }}</a>
                     {% endfor %}

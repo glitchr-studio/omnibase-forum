@@ -22,23 +22,43 @@ use Doctrine\ORM\QueryBuilder;
 class TopicRepository extends ThreadRepository
 {
     /**
+     * Only the topics that are out: a scheduled one (Topic::schedule()) stays
+     * out of every list until its hour. Every query below that lists topics
+     * goes through here - a list that forgot it would give the topic away
+     * before its time, on the home page as much as on the BBS.
+     */
+    public function whereOut(QueryBuilder $qb, string $alias = 't'): QueryBuilder
+    {
+        return $qb->andWhere(sprintf('(%1$s.publishedAt IS NULL OR %1$s.publishedAt <= :forum_now)', $alias))
+            ->setParameter('forum_now', new \DateTime());
+    }
+
+    /**
      * A listing query: pinned first, then by last activity. Soft-deleted
      * topics are filtered by base-bundle's Trasheable filter, so nothing to
-     * do here about them.
+     * do here about them. Scheduled topics are left out, unless asked for
+     * ($withUpcoming: a board's own list, read by those who may see them).
      */
-    public function createListQueryBuilder(): QueryBuilder
+    public function createListQueryBuilder(bool $withUpcoming = false): QueryBuilder
     {
-        return $this->createQueryBuilder('t')
+        $qb = $this->createQueryBuilder('t')
             ->leftJoin('t.category', 'c')->addSelect('c')
             ->leftJoin('t.lastPoster', 'lp')->addSelect('lp')
             ->orderBy('t.pinned', \SortDirection::Descending)
             ->addOrderBy('t.lastPostAt', \SortDirection::Descending)
             ->addOrderBy('t.createdAt', \SortDirection::Descending);
+
+        return $withUpcoming ? $qb : $this->whereOut($qb);
     }
 
-    public function createCategoryQuery(Category $category): Query
+    /**
+     * A board's topics. $withUpcoming for the moderators of that board: they
+     * see what is scheduled there, on top (its last activity is its hour to
+     * come) and marked as such (_topic_row.html.twig).
+     */
+    public function createCategoryQuery(Category $category, bool $withUpcoming = false): Query
     {
-        return $this->createListQueryBuilder()
+        return $this->createListQueryBuilder($withUpcoming)
             ->andWhere('t.category = :category')->setParameter('category', $category)
             ->getQuery();
     }
@@ -58,11 +78,11 @@ class TopicRepository extends ThreadRepository
      */
     public function createLatestQuery(?array $readableCategoryIds = null): Query
     {
-        $qb = $this->createQueryBuilder('t')
+        $qb = $this->whereOut($this->createQueryBuilder('t')
             ->leftJoin('t.category', 'c')->addSelect('c')
             ->leftJoin('t.lastPoster', 'lp')->addSelect('lp')
             ->orderBy('t.lastPostAt', \SortDirection::Descending)
-            ->addOrderBy('t.createdAt', \SortDirection::Descending);
+            ->addOrderBy('t.createdAt', \SortDirection::Descending));
 
         if (null !== $readableCategoryIds) {
             $qb->andWhere('c.id IN (:ids)')->setParameter('ids', $readableCategoryIds ?: [0]);
@@ -74,14 +94,14 @@ class TopicRepository extends ThreadRepository
     /**
      * What people are talking about: among the topics that have moved in the
      * last `days`, the busiest first - replies, then readers, then the most
-     * recently active. The feed's second order (?tri=populaire). Readable
+     * recently active. The feed's second order ("popular"). Readable
      * boards only, the caller passing them as for createLatestQuery().
      *
      * @param int[]|null $readableCategoryIds
      */
     public function createTrendingQuery(?array $readableCategoryIds = null, int $days = 30): Query
     {
-        $qb = $this->createQueryBuilder('t')
+        $qb = $this->whereOut($this->createQueryBuilder('t'))
             ->leftJoin('t.category', 'c')->addSelect('c')
             ->leftJoin('t.lastPoster', 'lp')->addSelect('lp')
             ->andWhere('t.lastPostAt >= :since')
@@ -111,7 +131,7 @@ class TopicRepository extends ThreadRepository
             return [];
         }
 
-        return $this->createQueryBuilder('t')
+        return $this->whereOut($this->createQueryBuilder('t'))
             ->leftJoin('t.category', 'c')->addSelect('c')
             ->leftJoin('t.lastPoster', 'lp')->addSelect('lp')
             ->andWhere('t.pinned = true')
@@ -124,7 +144,8 @@ class TopicRepository extends ThreadRepository
     /**
      * The announcements of the flat view: the latest topics of the
      * announcement boards (Category::$announcement - "Annonce", "Messages
-     * Officiels").
+     * Officiels"), in the order they came out - a scheduled one takes its
+     * place at its hour, not at the hour it was written.
      *
      * @param int[] $boardIds the readable announcement boards
      * @return Topic[]
@@ -135,10 +156,11 @@ class TopicRepository extends ThreadRepository
             return [];
         }
 
-        return $this->createQueryBuilder('t')
+        return $this->whereOut($this->createQueryBuilder('t'))
             ->leftJoin('t.category', 'c')->addSelect('c')
             ->andWhere('c.id IN (:ids)')->setParameter('ids', $boardIds)
-            ->orderBy('t.createdAt', \SortDirection::Descending)
+            ->orderBy('t.publishedAt', \SortDirection::Descending)
+            ->addOrderBy('t.id', \SortDirection::Descending)
             ->setMaxResults($limit)
             ->getQuery()->getResult();
     }
@@ -188,7 +210,7 @@ class TopicRepository extends ThreadRepository
      */
     public function countPerCategory(): array
     {
-        $rows = $this->createQueryBuilder('t')
+        $rows = $this->whereOut($this->createQueryBuilder('t'))
             ->select('IDENTITY(t.category) AS category, COUNT(t.id) AS topics, COALESCE(SUM(t.replies), 0) AS replies')
             ->groupBy('t.category')
             ->getQuery()->getArrayResult();
@@ -212,7 +234,7 @@ class TopicRepository extends ThreadRepository
      */
     public function findHotCategoryIds(int $threshold): array
     {
-        $rows = $this->createQueryBuilder('t')
+        $rows = $this->whereOut($this->createQueryBuilder('t'))
             ->select('IDENTITY(t.category) AS category')
             ->andWhere('t.replies >= :threshold')->setParameter('threshold', $threshold)
             ->groupBy('t.category')
@@ -236,9 +258,12 @@ class TopicRepository extends ThreadRepository
      */
     public function findLastPerCategory(): array
     {
-        $topics = $this->createQueryBuilder('t')
+        // Scheduled topics out of the MAX() as well: otherwise a board whose
+        // newest topic is still to come would show no last message at all.
+        $topics = $this->whereOut($this->createQueryBuilder('t'))
             ->leftJoin('t.lastPoster', 'lp')->addSelect('lp')
-            ->andWhere('t.lastPostAt = (SELECT MAX(t2.lastPostAt) FROM ' . Topic::class . ' t2 WHERE t2.category = t.category)')
+            ->andWhere('t.lastPostAt = (SELECT MAX(t2.lastPostAt) FROM ' . Topic::class . ' t2 WHERE t2.category = t.category'
+                . ' AND (t2.publishedAt IS NULL OR t2.publishedAt <= :forum_now))')
             ->getQuery()->getResult();
 
         $last = [];
@@ -269,6 +294,7 @@ class TopicRepository extends ThreadRepository
             ->from(Tag::class, 'tag')
             ->innerJoin('tag.threads', 't')
             ->andWhere('t INSTANCE OF ' . Topic::class)
+            ->andWhere('(t.publishedAt IS NULL OR t.publishedAt <= :forum_now)')->setParameter('forum_now', new \DateTime())
             ->groupBy('tag.id')
             ->orderBy('tag.priority', \SortDirection::Descending)
             ->addOrderBy('nb', \SortDirection::Descending)

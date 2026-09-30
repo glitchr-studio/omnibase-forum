@@ -25,7 +25,7 @@
                 <a class="forum-tag forum-tag-sm" href="{{ path('forum_tag', {slug: tag.slug}) }}" style="{{ tag.color ? '--tag:' ~ tag.color : '' }}">{{ tag }}</a>
             {% endfor %}
             {# Who opened it, and when - the first message's day. #}
-            {% set born = topic.createdAt %}
+            {% set born = topic.publishedAt ?? topic.createdAt %}
             <span class="forum-feed-by">{{ '@forum.list.by'|trans }} {{ include('@Forum/client/_member.html.twig', {user: topic.author})|trim|raw }}{% if born %}, <time datetime="{{ born|date('c') }}" title="{{ born|datetime('d MMMM yyyy, HH:mm') }}">{{ born|datetime('d MMM yyyy') }}</time>{% endif %}</span>
         </div>
     </div>

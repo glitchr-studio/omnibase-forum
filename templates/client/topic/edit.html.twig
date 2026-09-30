@@ -16,9 +16,18 @@
     </section>
 
     {{ form_start(form, {attr: {class: 'forum-form forum-form-topic'}}) }}
+        {# What belongs to no field on the page (an expired token, a field the form leaves out): said, not swallowed. #}
+        {{ form_errors(form) }}
         {{ form_row(form.title) }}
         {% if form.category is defined %}{{ form_row(form.category) }}{% endif %}
         {{ form_row(form.tags) }}
+        {# When it comes out, and in whose name: only for those who may (TopicController). #}
+        {% if form.author is defined or form.publishedAt is defined %}
+            <fieldset class="forum-form-publish">
+                {% if form.author is defined %}{{ form_row(form.author) }}{% endif %}
+                {% if form.publishedAt is defined %}{{ form_row(form.publishedAt) }}{% endif %}
+            </fieldset>
+        {% endif %}
         <div class="forum-form-actions">
             <button type="submit" class="forum-btn forum-btn-primary"><i class="fa-solid fa-check"></i> {{ '@forum.form.save'|trans }}</button>
             <a class="forum-btn forum-btn-ghost" href="{{ path('forum_topic', {slug: topic.slug}) }}">{{ '@forum.form.cancel'|trans }}</a>

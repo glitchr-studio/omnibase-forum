@@ -35,18 +35,21 @@
         {# A topic's two styles - see TopicController::STYLES: the messages as cards, or the 2005 box. #}
         {% if topic_style is defined and topic is defined %}
         {% set page_param = posts is defined and posts.page > 1 ? posts.page : null %}
-        <div class="forum-views" role="group" aria-label="{{ '@forum.style.label'|trans }}">
-            <a class="forum-view{{ topic_style == 'retro' ? ' is-active' }}" href="{{ path('forum_topic', {slug: topic.slug, page: page_param, style: 'retro'}) }}"{{ topic_style == 'retro' ? ' aria-current="page"' }}><i class="fa-solid fa-clock-rotate-left"></i> {{ '@forum.style.retro'|trans }}</a>
-            <a class="forum-view{{ topic_style == 'cartes' ? ' is-active' }}" href="{{ path('forum_topic', {slug: topic.slug, page: page_param, style: 'cartes'}) }}"{{ topic_style == 'cartes' ? ' aria-current="page"' }}><i class="fa-regular fa-clone"></i> {{ '@forum.style.cartes'|trans }}</a>
-        </div>
+        {# A POST that remembers the choice (ForumController::Display) and comes back here: nothing in the address. #}
+        <form class="forum-views" role="group" aria-label="{{ '@forum.style.label'|trans }}" method="post" action="{{ path('forum_display') }}">
+            <input type="hidden" name="back" value="{{ app.request.requestUri }}">
+            <button type="submit" name="style" value="retro" class="forum-view{{ topic_style == 'retro' ? ' is-active' }}"{{ topic_style == 'retro' ? ' aria-current="page"' }}><i class="fa-solid fa-clock-rotate-left"></i> {{ '@forum.style.retro'|trans }}</button>
+            <button type="submit" name="style" value="cards" class="forum-view{{ topic_style == 'cards' ? ' is-active' }}"{{ topic_style == 'cards' ? ' aria-current="page"' }}><i class="fa-regular fa-clone"></i> {{ '@forum.style.cartes'|trans }}</button>
+        </form>
         {% endif %}
 
         {# The index's views - see ForumController::VIEWS. Only where there is a view to switch. #}
         {% if view is defined %}
-        <div class="forum-views" role="group" aria-label="{{ '@forum.view.label'|trans }}">
-            <a class="forum-view{{ view == 'classique' ? ' is-active' }}" href="{{ path('forum_index', {vue: 'classique'}) }}"{{ view == 'classique' ? ' aria-current="page"' }}><i class="fa-solid fa-table-list"></i> {{ '@forum.view.classique'|trans }}</a>
-            <a class="forum-view{{ view == 'fil' ? ' is-active' }}" href="{{ path('forum_index', {vue: 'fil'}) }}"{{ view == 'fil' ? ' aria-current="page"' }}><i class="fa-solid fa-stream"></i> {{ '@forum.view.fil'|trans }}</a>
-        </div>
+        <form class="forum-views" role="group" aria-label="{{ '@forum.view.label'|trans }}" method="post" action="{{ path('forum_display') }}">
+            <input type="hidden" name="back" value="{{ path('forum_index') }}">
+            <button type="submit" name="view" value="classic" class="forum-view{{ view == 'classic' ? ' is-active' }}"{{ view == 'classic' ? ' aria-current="page"' }}><i class="fa-solid fa-table-list"></i> {{ '@forum.view.classique'|trans }}</button>
+            <button type="submit" name="view" value="feed" class="forum-view{{ view == 'feed' ? ' is-active' }}"{{ view == 'feed' ? ' aria-current="page"' }}><i class="fa-solid fa-stream"></i> {{ '@forum.view.fil'|trans }}</button>
+        </form>
         {% endif %}
 
         <form class="forum-search" action="{{ path('forum_search') }}" method="get" role="search">
@@ -56,7 +59,8 @@
     </header>
     {% endblock %}
 
-    {% include 'flashbag.html.twig' ignore missing %}
+    {# A site that shows its messages elsewhere (under its own breadcrumb) empties this block. #}
+    {% block forum_flashes %}{% include 'flashbag.html.twig' ignore missing %}{% endblock %}
 
     {#
      # The page's lead, across both columns: what a page wants read before it,

@@ -35,6 +35,23 @@ class TopicModel
     /** Its answers, one per line; blank lines are dropped. */
     public ?string $pollOptions = null;
 
+    /** How many answers a member may pick: 1, a single one; more, up to that many (Poll::$maxChoices). */
+    #[Assert\Range(min: 1, max: Poll::MAX_OPTIONS, notInRangeMessage: '@forum.poll.max_range')]
+    public ?int $pollMax = 1;
+
+    /**
+     * When it comes out (Topic::schedule()): empty, at once. Only asked of
+     * those who may schedule (ForumVoter::SCHEDULE).
+     */
+    public ?\DateTimeInterface $publishedAt = null;
+
+    /**
+     * The member it is published under: the forum admin may sign a topic
+     * with another member's name (ForumVoter::ADMIN), picked from a search.
+     * Empty, their own.
+     */
+    public ?\App\Entity\User $author = null;
+
     /** @return list<string> */
     public function pollOptionList(): array
     {
@@ -58,6 +75,14 @@ class TopicModel
                 ->atPath('pollOptions')->addViolation();
         } elseif (!$this->hasPoll() && $count > 0) {
             $context->buildViolation('@forum.poll.question_blank')->atPath('pollQuestion')->addViolation();
+        } elseif ($this->hasPoll() && $this->category && !$this->category->allowsPolls()) {
+            // The form hides the poll for such a board; this is for whoever sends one anyway.
+            $context->buildViolation('@forum.poll.not_allowed')->atPath('pollQuestion')->addViolation();
+        } elseif ($this->hasPoll() && (int) $this->pollMax > $count) {
+            // "Up to 5" among 3 answers says something the poll cannot mean.
+            $context->buildViolation('@forum.poll.max_over')
+                ->setParameter('{count}', (string) $count)
+                ->atPath('pollMax')->addViolation();
         }
     }
 }

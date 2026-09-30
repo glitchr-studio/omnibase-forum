@@ -6,13 +6,15 @@ use App\Entity\User;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
- * One member's answer to a poll. One per member and poll: the unique index is
- * what holds it, not a check in the controller, so two clicks racing each
- * other cannot cast two votes.
+ * One answer a member picked in a poll: one row per answer, so a poll that
+ * allows several (Poll::$maxChoices) holds a member's picks as several rows.
+ * The same answer twice is what the unique index refuses - not a check in the
+ * controller - so two clicks racing each other cannot count one pick twice;
+ * how many answers a member may pick is the vote action's to hold.
  */
 #[ORM\Entity]
 #[ORM\Table(name: 'forum_poll_vote')]
-#[ORM\UniqueConstraint(name: 'forum_poll_vote_once', columns: ['poll_id', 'user_id'])]
+#[ORM\UniqueConstraint(name: 'forum_poll_vote_once', columns: ['poll_id', 'user_id', 'choice'])]
 class PollVote
 {
     #[ORM\Id]

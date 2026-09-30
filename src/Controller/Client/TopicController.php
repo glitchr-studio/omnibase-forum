@@ -20,7 +20,10 @@ use Base\Forum\Service\MarkdownRenderer;
 use Base\Service\PaginatorInterface;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
+use App\Entity\User;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\Form\FormError;
+use Symfony\Component\Form\FormInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -37,9 +40,9 @@ class TopicController extends AbstractController
     /**
      * A topic's two looks: the messages as separate cards, or the 2005
      * board's one box with its rows (topic/show.html.twig). Chosen with
-     * ?style=, remembered per browser in STYLE_COOKIE.
+     * the reader's choice (ForumController::Display()), remembered per browser in STYLE_COOKIE.
      */
-    public const STYLES = ['retro', 'cartes'];
+    public const STYLES = ['retro', 'cards'];
     public const STYLE_COOKIE = 'FORUM/TOPIC';
 
     /**
@@ -99,29 +102,67 @@ class TopicController extends AbstractController
             }
         }
 
-        $form = $this->createForm(TopicType::class, $model);
+        // When it comes out, for whoever moderates a board; in whose name, for the forum admin.
+        $withAuthor = $this->isGranted(ForumVoter::ADMIN);
+        if ($withAuthor) {
+            $model->author = $this->getUser() instanceof User ? $this->getUser() : null;
+        }
+        // Started from inside a board the writer may post in: that board, with nothing to choose.
+        // (The list leaves locked boards out, so an announcement board - locked to members, open
+        // to its admins - could not even be picked from it.)
+        $fixed = null !== $category && $model->category instanceof Category && $this->isGranted(ForumVoter::POST, $model->category);
+
+        // Otherwise a board is chosen - from the ones this writer may post in (ForumVoter::POST: a board
+        // not locked, readable, an announcement board for its admins, the site's own rules such as a
+        // level) and those only. None at all: said, rather than a form that can only be refused.
+        $boards = null;
+        if (!$fixed) {
+            $boards = array_values(array_filter($this->categories->findBoards(), fn (Category $board) => $this->isGranted(ForumVoter::POST, $board)));
+            if (!$boards) {
+                $this->addFlash('error', $this->translator->trans('@forum.aside.cannot_post'));
+
+                return $this->redirectToRoute('forum_index');
+            }
+            if ($model->category && !\in_array($model->category, $boards, true)) {
+                $model->category = null;
+            }
+        }
+        $form = $this->createForm(TopicType::class, $model, [
+            'with_schedule' => $this->isGranted(ForumVoter::SCHEDULE),
+            'with_author' => $withAuthor,
+            'fixed_category' => $fixed,
+            'boards' => $boards,
+        ]);
         $form->handleRequest($request);
 
         if ($form->isSubmitted() && $form->isValid()) {
-            if (!$this->isGranted(ForumVoter::POST, $model->category)) {
+            $author = $this->authorFrom($form, $model);
+            $scheduled = $this->scheduleFrom($form, $model, $model->category);
+
+            if (!$author || false === $scheduled) {
+                // The field says what is wrong (authorFrom(), scheduleFrom()).
+            } elseif (!$this->isGranted(ForumVoter::POST, $model->category)) {
                 $this->addFlash('error', $this->translator->trans('@forum.flash.board_locked'));
             } elseif ($wait = $this->floodWait()) {
                 $this->addFlash('error', $this->translator->trans('@forum.flash.flood', ['%seconds%' => $wait]));
             } else {
-                $topic = new Topic($this->getUser(), $model->category, $model->title);
+                $topic = new Topic($author, $model->category, $model->title);
                 foreach ($model->tags as $tag) {
                     $topic->addTag($tag);
                 }
-                $post = new Post($this->getUser(), $model->content);
+                $post = new Post($author, $model->content);
                 $topic->addPost($post);
                 if ($model->hasPoll()) {
-                    new Poll($topic, trim($model->pollQuestion), $model->pollOptionList());
+                    new Poll($topic, trim($model->pollQuestion), $model->pollOptionList(), (int) ($model->pollMax ?: 1));
                 }
+                $topic->schedule($scheduled);
 
                 $this->entityManager->persist($topic);
                 $this->entityManager->flush();
 
-                $this->addFlash('success', $this->translator->trans('@forum.flash.topic_created'));
+                $this->addFlash('success', $topic->isUpcoming()
+                    ? $this->translator->trans('@forum.flash.topic_scheduled', ['date' => $this->when($topic->getPublishedAt(), $request->getLocale())])
+                    : $this->translator->trans('@forum.flash.topic_created'));
 
                 return $this->redirectToRoute('forum_topic', ['slug' => $topic->getSlug()]);
             }
@@ -140,7 +181,8 @@ class TopicController extends AbstractController
     public function Show(Request $request, string $slug): Response
     {
         $topic = $this->topics->findOneBySlug($slug);
-        if (!$topic) {
+        // Not out yet: not there at all, for whoever may not see it (ForumVoter) - not "forbidden", which would say it exists.
+        if (!$topic || ($topic->isUpcoming() && !$this->isGranted(ForumVoter::READ, $topic))) {
             throw $this->createNotFoundException('Unknown topic.');
         }
         $this->denyAccessUnlessGranted(ForumVoter::READ, $topic);
@@ -150,8 +192,10 @@ class TopicController extends AbstractController
         $stream = $request->headers->has(self::STREAM_HEADER);
 
         // Readers count, authors do not: a member re-reading their own topic
-        // is not an audience. Nor is a page the stream loads as they scroll.
-        if (!$stream && $this->getUser() !== $topic->getAuthor()) {
+        // is not an audience. Nor is a page the stream loads as they scroll,
+        // nor the same reader again - switching between the 2005 and the cards
+        // style reloads the topic, and each reload was a view.
+        if (!$stream && $this->getUser() !== $topic->getAuthor() && !$topic->isUpcoming() && $this->firstViewInSession($request, $topic)) {
             $this->topics->incrementViews($topic);
         }
 
@@ -163,7 +207,7 @@ class TopicController extends AbstractController
                 'topic' => $topic,
                 'posts' => $posts,
                 'outline_index' => $outlineIndex,
-                'retro' => 'cartes' !== $style,
+                'retro' => 'cards' !== $style,
             ]);
             $response->setVary(self::STREAM_HEADER, false);
             $response->setPrivate();
@@ -191,9 +235,8 @@ class TopicController extends AbstractController
             ])->createView();
         }
 
-        // The style asked for (?style=), or the one this browser last chose.
-        $asked = (string) $request->query->get('style', '');
-        $style = in_array($asked, self::STYLES, true) ? $asked : (string) $request->cookies->get(self::STYLE_COOKIE, self::STYLES[0]);
+        // The style this browser last chose (ForumController::Display()).
+        $style = (string) $request->cookies->get(self::STYLE_COOKIE, self::STYLES[0]);
         if (!in_array($style, self::STYLES, true)) {
             $style = self::STYLES[0];
         }
@@ -212,9 +255,6 @@ class TopicController extends AbstractController
             'is_liked' => $this->getUser() && $topic->isLiked($this->getUser()),
         ]);
 
-        if ($asked === $style) {
-            $response->headers->setCookie(\Symfony\Component\HttpFoundation\Cookie::create(self::STYLE_COOKIE, $style, new \DateTimeImmutable('+1 year'), '/', null, $request->isSecure(), true, false, 'lax'));
-        }
         // The same address answers the stream with a fragment: a cache must
         // not hand one for the other.
         $response->setVary(self::STREAM_HEADER, false);
@@ -265,7 +305,8 @@ class TopicController extends AbstractController
     }
 
     /**
-     * A vote on the topic's poll. One per member (PollVote's unique index),
+     * A vote on the topic's poll: one answer, or on a poll that allows several
+     * (Poll::$maxChoices) up to that many, sent together. Once per member and
      * final once cast, as the 2004 BBS had it; none on a locked topic.
      */
     #[Route('/bbs/{slug}/voter', name: 'forum_topic_vote', methods: ['POST'])]
@@ -284,16 +325,24 @@ class TopicController extends AbstractController
         }
         $back = $this->redirect($this->generateUrl('forum_topic', ['slug' => $slug]) . '#poll');
 
-        $choice = $request->request->getInt('choice', -1);
+        // `choice` (a single-answer poll's button) or `choice[]` (the boxes of one that allows several).
+        $sent = $request->request->all()['choice'] ?? [];
+        $choices = array_values(array_unique(array_map('intval', is_array($sent) ? $sent : [$sent])));
+        $valid = $choices && count(array_filter($choices, [$poll, 'hasOption'])) === count($choices);
         if (!$poll->isOpen()) {
             $this->addFlash('error', $this->translator->trans('@forum.poll.flash.closed'));
-        } elseif (!$poll->hasOption($choice)) {
+        } elseif (!$valid) {
             $this->addFlash('error', $this->translator->trans('@forum.poll.flash.no_choice'));
-        } elseif ($poll->getChoiceOf($this->getUser()) !== null) {
+        } elseif (count($choices) > $poll->getMaxChoices()) {
+            $this->addFlash('error', $this->translator->trans('@forum.poll.flash.too_many', ['max' => $poll->getMaxChoices()]));
+        } elseif ($poll->getChoicesOf($this->getUser())) {
             $this->addFlash('error', $this->translator->trans('@forum.poll.flash.already'));
         } else {
             try {
-                $this->entityManager->persist(new PollVote($poll, $this->getUser(), $choice));
+                // All the picks in one flush: a member's vote is whole, or not there.
+                foreach ($choices as $choice) {
+                    $this->entityManager->persist(new PollVote($poll, $this->getUser(), $choice));
+                }
                 $this->entityManager->flush();
                 $this->addFlash('success', $this->translator->trans('@forum.poll.flash.voted'));
             } catch (UniqueConstraintViolationException) {
@@ -319,18 +368,51 @@ class TopicController extends AbstractController
         $model->title = $topic->getTitle();
         $model->category = $topic->getCategory();
         $model->tags = $topic->getTags()->toArray();
+        // Not in this form (the opening post is edited as a post), but the
+        // model requires it: left empty, every edit failed on a field the page
+        // does not show, and was sent back without a word.
+        $model->content = $topic->getFirstPost()?->getContent();
+
+        // Its hour can still move while it is to come, and the forum admin can
+        // change whose name it is under.
+        $withSchedule = $topic->isUpcoming() && $this->isGranted(ForumVoter::SCHEDULE, $topic->getCategory());
+        $withAuthor = $this->isGranted(ForumVoter::ADMIN);
+        if ($withSchedule) {
+            // In the reader's timezone: a date comes back from the database in
+            // UTC, and the form prints a DateTime's own wall time as it is.
+            $model->publishedAt = \DateTime::createFromInterface($topic->getPublishedAt())
+                ->setTimezone(new \DateTimeZone(date_default_timezone_get()));
+        }
+        if ($withAuthor) {
+            $model->author = $topic->getAuthor();
+        }
 
         // Moving a topic to another board is moderation; an author only
         // retitles and retags.
-        $form = $this->createForm(TopicType::class, $model, ['with_content' => false]);
-        if (!$this->isGranted(ForumVoter::MODERATE)) {
+        $form = $this->createForm(TopicType::class, $model, [
+            'with_content' => false,
+            'with_schedule' => $withSchedule,
+            'with_author' => $withAuthor,
+        ]);
+        if (!$this->isGranted(ForumVoter::MODERATE, $topic)) {
             $form->remove('category');
         }
         $form->handleRequest($request);
 
-        if ($form->isSubmitted() && $form->isValid()) {
+        $author = null;
+        $scheduled = null;
+        if ($form->isSubmitted() && $form->isValid()
+            && ($author = $this->authorFrom($form, $model, $topic->getAuthor()))
+            && false !== ($scheduled = $this->scheduleFrom($form, $model, $model->category ?? $topic->getCategory()))) {
             $topic->setTitle($model->title);
-            if ($form->has('category') && $model->category) {
+            if ($author !== $topic->getAuthor()) {
+                $topic->setAuthor($author);
+            }
+            if ($form->has('publishedAt')) {
+                $topic->schedule($scheduled);
+            }
+            // Only into a board its mover moderates too - not a moderator's topic into the announcements.
+            if ($form->has('category') && $model->category && $this->isGranted(ForumVoter::MODERATE, $model->category)) {
                 $topic->setCategory($model->category);
             }
             foreach ($topic->getTags()->toArray() as $tag) {
@@ -459,7 +541,7 @@ class TopicController extends AbstractController
         }
 
         // A soft delete keeps the numbering; a moderator may restore.
-        if ($post->isDeleted() && $this->isGranted(ForumVoter::MODERATE)) {
+        if ($post->isDeleted() && $this->isGranted(ForumVoter::MODERATE, $post)) {
             $post->restore();
         } else {
             $post->delete($this->getUser());
@@ -566,12 +648,56 @@ class TopicController extends AbstractController
     }
     private function neighbour(Topic $topic, bool $next): ?Topic
     {
-        return $this->topics->createQueryBuilder('t')
+        return $this->topics->whereOut($this->topics->createQueryBuilder('t'))
             ->andWhere('t.category = :category')->setParameter('category', $topic->getCategory())
             ->andWhere($next ? 't.id > :id' : 't.id < :id')->setParameter('id', $topic->getId())
             ->orderBy('t.id', $next ? \SortDirection::Ascending : \SortDirection::Descending)
             ->setMaxResults(1)
             ->getQuery()->getOneOrNullResult();
+    }
+
+    /**
+     * Whose name the topic goes out under: the member picked in the form, for
+     * the forum admin (ForumVoter::ADMIN); anyone else, themselves - or, on an
+     * edit, whoever it already was. The picker only offers members that exist,
+     * so there is no name to look up and nothing to refuse.
+     */
+    private function authorFrom(FormInterface $form, TopicModel $model, ?User $current = null): ?User
+    {
+        $me = $this->getUser();
+        if ($form->has('author') && $model->author instanceof User) {
+            return $model->author;
+        }
+
+        return $current ?? ($me instanceof User ? $me : null);
+    }
+
+    /**
+     * When the topic comes out: the hour in the form - null for "now" - or
+     * false, with the field saying why, when it was given one for a board its
+     * writer may not schedule on.
+     */
+    private function scheduleFrom(FormInterface $form, TopicModel $model, ?Category $board): \DateTimeInterface|false|null
+    {
+        if (!$form->has('publishedAt') || !$model->publishedAt) {
+            return null;
+        }
+        if ($model->publishedAt <= new \DateTime()) {
+            return null;
+        }
+        if (!$board || !$this->isGranted(ForumVoter::SCHEDULE, $board)) {
+            $form->get('publishedAt')->addError(new FormError($this->translator->trans('@forum.form.schedule_denied')));
+
+            return false;
+        }
+
+        return $model->publishedAt;
+    }
+
+    /** A date as the reader says it, in their own timezone (base-bundle sets it per request): "24 sept. 2026, 18:00". */
+    private function when(\DateTimeInterface $at, string $locale): string
+    {
+        return (string) \IntlDateFormatter::create($locale, \IntlDateFormatter::MEDIUM, \IntlDateFormatter::SHORT, date_default_timezone_get())->format($at);
     }
 
     /** Seconds still to wait before posting again, 0 when clear. */
@@ -613,5 +739,26 @@ class TopicController extends AbstractController
             'slug' => $post->getTopic()->getSlug(),
             'page' => $page > 1 ? $page : null,
         ]) . '#post-' . $post->getId());
+    }
+
+    /** Topics this session has already been counted on, newest last; kept short. */
+    private const SEEN_SESSION_KEY = 'forum_topics_seen';
+    private const SEEN_MAX = 200;
+
+    /** True the first time this session opens the topic, and remembers it. */
+    private function firstViewInSession(Request $request, Topic $topic): bool
+    {
+        if (!$request->hasSession()) {
+            return true;
+        }
+        $session = $request->getSession();
+        $seen = (array) $session->get(self::SEEN_SESSION_KEY, []);
+        if (in_array($topic->getId(), $seen, true)) {
+            return false;
+        }
+        $seen[] = $topic->getId();
+        $session->set(self::SEEN_SESSION_KEY, array_slice($seen, -self::SEEN_MAX));
+
+        return true;
     }
 }

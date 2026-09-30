@@ -57,6 +57,8 @@ list:
   views: "Views"
   activity: "Activity"
   by: "by"
+  upcoming: "Scheduled"
+  upcoming_title: "Comes out on {date}"
   empty: "Nothing here yet. Be the first to start a topic!"
 
 pager:
@@ -71,6 +73,7 @@ pager:
 topic:
   new: "New topic"
   linked_from: "Started from the message"
+  upcoming: "Scheduled: this topic comes out on {date}. Until then only its author and this board's moderators can see it, and nobody can reply."
   linked_opening: "Continued from [“{title}”, post #{number}]({url})"
   new_hint: "A clear title, the right board, a tag or two: everyone finds their way."
   edit: "Edit topic"
@@ -155,6 +158,7 @@ search:
 
 aside:
   write: "Speak up"
+  cannot_post: "You cannot write in this board yet."
   login_to_write: "<a href=\"{login}\">Sign in</a> or <a href=\"{register}\">create an account</a> to write on the BBS."
   tags: "Tags"
   help: "Good to know"
@@ -178,6 +182,12 @@ form:
   reply: "Your reply"
   reply_placeholder: "Write your reply here…"
   markdown_help: "Markdown accepted: **bold**, _italic_, > quote, `code`, lists, links."
+  published_at: "Publish on"
+  published_at_help: "Empty: right away. A date to come keeps the topic off the forum until that hour (your time: {zone})."
+  author: "Publish as"
+  author_help: "Type the start of a username and pick the member who signs this topic. Empty: you."
+  author_placeholder: "Search for a member…"
+  schedule_denied: "You cannot schedule topics on this board."
   save: "Save"
   cancel: "Cancel"
   board_title: "Board name"
@@ -189,9 +199,12 @@ form:
   board_description_placeholder: "What is this board about?"
   board_announcement: "Announcements board"
   board_announcement_help: "The board and its topics wear the announcement badge, and the feed view shows its latest topics first."
+  board_polls: "Polls allowed"
+  board_polls_help: "A topic opened in this board may carry a poll."
 
 flash:
   topic_created: "Your topic is online!"
+  topic_scheduled: "Your topic is scheduled: it comes out on {date}."
   topic_updated: "Topic updated."
   topic_deleted: "Topic deleted."
   moderated: "Done."
@@ -242,14 +255,20 @@ admin:
 # A topic's poll (Poll): one question, a few answers, one vote per member.
 poll:
   title: "Poll"
-  total: "{count, plural, =0 {No votes yet} one {# vote} other {# votes}}"
+  total: "{count, plural, =0 {No votes yet} one {# voter} other {# voters}}"
   vote: "Vote for “{option}”"
   your_vote: "your vote"
   pick: "Pick your answer:"
+  pick_many: "Tick up to {max} answers:"
+  submit: "Vote"
+  many_note: "up to {max} answers per voter"
+  max_range: "Between 1 and {{ limit }} answers per voter."
+  max_over: "There are only {count} answers: no one can tick more."
   login: "Log in to vote."
   closed: "Poll closed: the topic is locked."
   question_long: "A question fits in {{ limit }} characters."
   question_blank: "You wrote answers: the poll needs its question."
+  not_allowed: "This board does not take polls."
   options_count: "A poll has between {min} and {max} answers, one per line."
   form:
     legend: "Poll (optional)"
@@ -258,9 +277,18 @@ poll:
     question_help: "Leave empty for a topic without a poll."
     options: "Answers"
     options_placeholder: "One answer per line"
-    options_help: "Between 2 and 10 answers, one per line. They cannot be changed once the topic is posted."
+    options_help: "Between 2 and 10 answers. They cannot be changed once the topic is posted."
+    max: "Answers per voter"
+    max_help: "1: a single answer. More: everyone may tick up to that many."
+    one: "A single answer"
+    many: "Several answers"
+    up_to: "up to"
+    answer: "Answer {n}"
+    add: "Add an answer"
+    remove: "Remove this answer"
   flash:
     voted: "Vote counted!"
     already: "You have already voted in this poll."
     no_choice: "Pick an answer."
+    too_many: "{max, plural, one {A single answer} other {At most # answers}} in this poll."
     closed: "This poll is closed."

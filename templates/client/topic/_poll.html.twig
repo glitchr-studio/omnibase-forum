@@ -3,7 +3,8 @@
  # 2004 BBS had its "sondage".
  #
  # Before a member has voted, the answers are the buttons: one click on an
- # answer is the vote, and no result shows yet, so what the others chose does
+ # answer is the vote - or, on a poll that allows several (poll.maxChoices),
+ # a box per answer and a "Voter" button - and no result shows yet, so what the others chose does
  # not lean on the choice. After it - and for a visitor, or once the topic is
  # locked - the results: a bar per answer, its share and its count, the
  # leading answer marked, and the reader's own answer said as theirs.
@@ -11,8 +12,8 @@
 {% set poll = topic.poll %}
 {% set counts = poll.counts %}
 {% set total = poll.total %}
-{% set mine = poll.choiceOf(app.user) %}
-{% set can_vote = app.user and mine is null and poll.open %}
+{% set mine = poll.choicesOf(app.user) %}
+{% set can_vote = app.user and mine is empty and poll.open %}
 {% set top = counts ? max(counts) : 0 %}
 <section class="forum-poll{{ can_vote ? ' is-voting' }}" id="poll" aria-labelledby="poll-question-{{ poll.id }}">
     <header class="forum-poll-head">
@@ -23,16 +24,22 @@
     {% if can_vote %}
     <form class="forum-poll-form" method="post" action="{{ path('forum_topic_vote', {slug: topic.slug}) }}">
         <input type="hidden" name="_token" value="{{ csrf_token('forum_vote_' ~ poll.id) }}">
-        <p class="forum-poll-pick">{{ '@forum.poll.pick'|trans }}</p>
+        <p class="forum-poll-pick">{{ poll.multiple ? '@forum.poll.pick_many'|trans({max: poll.maxChoices}) : '@forum.poll.pick'|trans }}</p>
     {% endif %}
 
     <ol class="forum-poll-options">
         {% for option in poll.options %}
             {% set count = counts[loop.index0] ?? 0 %}
             {% set share = total ? (count * 100 / total)|round : 0 %}
-            {% set is_mine = mine is not null and mine == loop.index0 %}
+            {% set is_mine = loop.index0 in mine %}
             <li class="forum-poll-option{{ is_mine ? ' is-mine' }}{{ not can_vote and total and count == top ? ' is-top' }}" style="--share: {{ share }}%">
-                {% if can_vote %}
+                {% if can_vote and poll.multiple %}
+                    <label class="forum-poll-row forum-poll-row-check">
+                        <input type="checkbox" name="choice[]" value="{{ loop.index0 }}" data-forum-poll-pick>
+                        <span class="forum-poll-mark is-box" aria-hidden="true"></span>
+                        <span class="forum-poll-label">{{ option }}</span>
+                    </label>
+                {% elseif can_vote %}
                     <button type="submit" name="choice" value="{{ loop.index0 }}" class="forum-poll-row" title="{{ '@forum.poll.vote'|trans({option: option}) }}">
                         <span class="forum-poll-mark" aria-hidden="true"></span>
                         <span class="forum-poll-label">{{ option }}</span>
@@ -49,10 +56,18 @@
         {% endfor %}
     </ol>
 
+    {% if can_vote and poll.multiple %}
+        {# At most poll.maxChoices boxes: the others are shut once that many are ticked (forum-poll-builder.js), and the vote action holds it anyway. #}
+        <p class="forum-poll-submit" data-forum-poll-limit="{{ poll.maxChoices }}">
+            <button type="submit" class="forum-btn forum-btn-primary"><i class="fa-solid fa-check-to-slot" aria-hidden="true"></i> {{ '@forum.poll.submit'|trans }}</button>
+        </p>
+    {% endif %}
     {% if can_vote %}</form>{% endif %}
+    {% if can_vote and poll.multiple %}<script src="{{ asset('bundles/forum/js/forum-poll.js') }}" defer></script>{% endif %}
 
     <footer class="forum-poll-foot">
         <b>{{ '@forum.poll.total'|trans({count: total}) }}</b>
+        {% if poll.multiple %}<span>{{ '@forum.poll.many_note'|trans({max: poll.maxChoices}) }}</span>{% endif %}
         {% if not app.user %}
             <span><a href="{{ path('security_login') }}">{{ '@forum.poll.login'|trans }}</a></span>
         {% elseif not poll.open %}

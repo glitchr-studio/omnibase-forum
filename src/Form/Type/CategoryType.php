@@ -58,6 +58,11 @@ class CategoryType extends AbstractType
                 'label' => '@forum.form.board_announcement',
                 'required' => false,
                 'help' => '@forum.form.board_announcement_help',
+            ])
+            ->add('polls', CheckboxType::class, [
+                'label' => '@forum.form.board_polls',
+                'required' => false,
+                'help' => '@forum.form.board_polls_help',
             ]);
     }
 }

@@ -58,6 +58,8 @@ list:
   views: "Vues"
   activity: "Activité"
   by: "par"
+  upcoming: "Programmé"
+  upcoming_title: "Paraîtra le {date}"
   empty: "Rien par ici pour l'instant. Sois le premier à lancer un sujet !"
 
 pager:
@@ -72,6 +74,7 @@ pager:
 topic:
   new: "Nouveau sujet"
   linked_from: "À partir du message"
+  upcoming: "Programmé : ce sujet paraîtra le {date}. D'ici là, seuls son auteur et les modérateurs de ce forum le voient, et personne ne peut y répondre."
   linked_opening: "Suite de [« {title} », message #{number}]({url})"
   new_hint: "Un titre clair, le bon forum, une ou deux étiquettes : tout le monde s'y retrouve."
   edit: "Modifier le sujet"
@@ -156,6 +159,7 @@ search:
 
 aside:
   write: "Prendre la parole"
+  cannot_post: "Tu ne peux pas encore écrire dans ce forum."
   login_to_write: "<a href=\"{login}\">Connecte-toi</a> ou <a href=\"{register}\">crée un compte</a> pour écrire sur le BBS."
   tags: "Étiquettes"
   help: "Bon à savoir"
@@ -179,6 +183,12 @@ form:
   reply: "Ta réponse"
   reply_placeholder: "Écris ta réponse ici…"
   markdown_help: "Markdown accepté : **gras**, _italique_, > citation, `code`, listes, liens."
+  published_at: "Publier le"
+  published_at_help: "Vide : tout de suite. Une date à venir garde le sujet hors du BBS jusqu'à cette heure-là (à ton heure : {zone})."
+  author: "Publier au nom de"
+  author_help: "Tape le début d'un pseudo et choisis le membre qui signe ce sujet. Vide : toi."
+  author_placeholder: "Chercher un membre…"
+  schedule_denied: "Tu ne peux pas programmer de sujet dans ce forum."
   save: "Enregistrer"
   cancel: "Annuler"
   board_title: "Nom du forum"
@@ -190,9 +200,12 @@ form:
   board_description_placeholder: "De quoi parle-t-on dans ce forum ?"
   board_announcement: "Forum d'annonces"
   board_announcement_help: "Le forum et ses sujets portent la pastille « annonce », et la vue « fil » affiche ses derniers sujets en tête."
+  board_polls: "Sondages autorisés"
+  board_polls_help: "Un sujet ouvert dans ce forum peut porter un sondage."
 
 flash:
   topic_created: "Ton sujet est en ligne !"
+  topic_scheduled: "Ton sujet est programmé : il paraîtra le {date}."
   topic_updated: "Sujet mis à jour."
   topic_deleted: "Sujet supprimé."
   moderated: "C'est fait."
@@ -243,14 +256,20 @@ admin:
 # Le sondage d'un sujet (Poll) : une question, des réponses, une voix par membre.
 poll:
   title: "Sondage"
-  total: "{count, plural, =0 {Aucun vote pour l'instant} one {# vote} other {# votes}}"
+  total: "{count, plural, =0 {Aucun vote pour l'instant} one {# votant} other {# votants}}"
   vote: "Voter pour « {option} »"
   your_vote: "ton vote"
   pick: "Choisis ta réponse :"
+  pick_many: "Coche jusqu'à {max} réponses :"
+  submit: "Voter"
+  many_note: "jusqu'à {max} réponses par votant"
+  max_range: "Entre 1 et {{ limit }} réponses par votant."
+  max_over: "Il n'y a que {count} réponses : on ne peut pas en cocher plus."
   login: "Connecte-toi pour voter."
   closed: "Sondage clos : le sujet est verrouillé."
   question_long: "Une question tient en {{ limit }} caractères."
   question_blank: "Tu as écrit des réponses : il manque la question du sondage."
+  not_allowed: "Ce forum n'accepte pas de sondage."
   options_count: "Un sondage, c'est entre {min} et {max} réponses, une par ligne."
   form:
     legend: "Sondage (facultatif)"
@@ -259,9 +278,18 @@ poll:
     question_help: "Laisse vide pour un sujet sans sondage."
     options: "Réponses"
     options_placeholder: "Une réponse par ligne"
-    options_help: "Entre 2 et 10 réponses, une par ligne. On ne peut plus les modifier une fois le sujet posté."
+    options_help: "Entre 2 et 10 réponses. On ne peut plus les modifier une fois le sujet posté."
+    max: "Réponses par votant"
+    max_help: "1 : une seule réponse. Plus : chacun peut en cocher jusqu'à ce nombre."
+    one: "Une seule réponse"
+    many: "Plusieurs réponses"
+    up_to: "jusqu'à"
+    answer: "Réponse {n}"
+    add: "Ajouter une réponse"
+    remove: "Retirer cette réponse"
   flash:
     voted: "A voté !"
     already: "Tu as déjà voté à ce sondage."
     no_choice: "Choisis une réponse."
+    too_many: "{max, plural, one {Une seule réponse} other {# réponses au plus}} dans ce sondage."
     closed: "Ce sondage est clos."

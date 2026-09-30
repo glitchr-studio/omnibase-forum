@@ -29,24 +29,38 @@
     {% set route = app.request.attributes.get('_route') %}
     {% set here = route == 'forum_category' and category is defined and category and category.isBoard ? category : null %}
     {% set new_topic = here and is_granted('FORUM_POST', here) %}
+    {# On the index, "Nouveau sujet" too - the board chosen in the form, among those the writer may post in (TopicController::Create). #}
+    {% set new_topic_anywhere = route == 'forum_index' and groups is defined
+        and groups|reduce((found, g) => found or g.children|filter(b => is_granted('FORUM_POST', b))|length > 0, false) %}
     {% set new_board = route in ['forum_index', 'forum_category'] and is_granted('FORUM_ADMIN') %}
     {% set within = group is defined and group ? group : (here ? here.parent : null) %}
     {% set login = not is_granted('ROLE_USER') %}
-    {% if new_topic or new_board or login %}
+    {# Signed in, on an open board, and still not allowed to write there: said, rather than a box that is simply not there (a site's own rule - a level, a perk - says why in @forum.aside.cannot_post). #}
+    {% set cannot_post = (here and not login and not new_topic and not here.locked)
+        or (route == 'forum_index' and groups is defined and not login and not new_topic_anywhere) %}
+    {% if new_topic or new_topic_anywhere or new_board or login or cannot_post %}
 <div class="forum-box forum-box-new">
     <div class="forum-box-title"><i class="fa-solid fa-pen-nib"></i> {{ '@forum.aside.write'|trans }}</div>
     <div class="forum-box-body">
         {% if login %}
             <p>{{ '@forum.aside.login_to_write'|trans({'%login%': path('security_login'), '%register%': path('security_register')})|raw }}</p>
         {% endif %}
+        {% if cannot_post %}
+            <p class="forum-box-note"><i class="fa-solid fa-lock" aria-hidden="true"></i> {{ '@forum.aside.cannot_post'|trans }}</p>
+        {% endif %}
+        {# "Nouveau forum" first, then "Nouveau sujet". #}
+        {% if new_board %}
+            <a class="forum-btn forum-btn-ghost" href="{{ path('forum_category_new', within ? {dans: within.slug} : {}) }}">
+                <i class="fa-solid fa-folder-plus"></i> {{ '@forum.board.new'|trans }}
+            </a>
+        {% endif %}
         {% if new_topic %}
             <a class="forum-btn forum-btn-primary" href="{{ path('forum_topic_new', {category: here.slug}) }}">
                 <i class="fa-solid fa-plus"></i> {{ '@forum.topic.new'|trans }}
             </a>
-        {% endif %}
-        {% if new_board %}
-            <a class="forum-btn forum-btn-ghost" href="{{ path('forum_category_new', within ? {dans: within.slug} : {}) }}">
-                <i class="fa-solid fa-folder-plus"></i> {{ '@forum.board.new'|trans }}
+        {% elseif new_topic_anywhere %}
+            <a class="forum-btn forum-btn-primary" href="{{ path('forum_topic_new') }}">
+                <i class="fa-solid fa-plus"></i> {{ '@forum.topic.new'|trans }}
             </a>
         {% endif %}
     </div>

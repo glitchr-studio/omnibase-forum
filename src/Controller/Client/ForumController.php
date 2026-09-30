@@ -45,17 +45,54 @@ class ForumController extends AbstractController
     }
 
     /**
-     * The index's views. "classique" is the phpBB board list, grouped; "fil"
+     * The index's views. "classic" is the phpBB board list, grouped; "feed"
      * is the flat, Discourse-like feed with the announcements and the pinned
-     * topics as post-its on top. A view no longer offered - a remembered
-     * cookie, an old ?vue= link, the "arbre" the BBS was once grown as -
+     * topics as post-its on top. A view no longer offered - a cookie from before
+     * (the French names these once had, the "arbre" the BBS was once grown as) -
      * falls back to the first.
      */
-    public const VIEWS = ['classique', 'fil'];
+    public const VIEWS = ['classic', 'feed'];
 
-    /** The feed's two orders: the latest activity, or what is busiest lately (?tri=). */
-    public const SORTS = ['recent', 'populaire'];
+    /** The feed's two orders: the latest activity, or what is busiest lately. */
+    public const SORTS = ['recent', 'popular'];
     public const VIEW_COOKIE = 'FORUM/VIEW';
+    public const SORT_COOKIE = 'FORUM/SORT';
+
+    /**
+     * How a reader likes the BBS drawn, each choice remembered per browser for a year - never carried in
+     * the address: the index's view, the feed's order, a topic's style. What the buttons send
+     * (display()), name => [cookie, allowed values].
+     */
+    public const DISPLAY = [
+        'view' => [self::VIEW_COOKIE, self::VIEWS],
+        'sort' => [self::SORT_COOKIE, self::SORTS],
+        'style' => [TopicController::STYLE_COOKIE, TopicController::STYLES],
+    ];
+
+    /**
+     * A display choice (DISPLAY) remembered, then back to the page it was made on. A small POST form per
+     * button rather than a query parameter: the address stays the page's own, and reloading it,
+     * sharing it or coming back to it later shows what the reader last chose. Any other name or value is
+     * ignored; `back` is only ever a path on this site.
+     */
+    #[Route('/bbs/display', name: 'forum_display', methods: ['POST'])]
+    public function Display(Request $request): Response
+    {
+        $back = (string) $request->request->get('back', '');
+        if (!str_starts_with($back, '/') || str_starts_with($back, '//')) {
+            $back = $this->generateUrl('forum_index');
+        }
+        $response = $this->redirect($back);
+
+        foreach (self::DISPLAY as $name => [$cookie, $allowed]) {
+            $value = (string) $request->request->get($name, '');
+            if (in_array($value, $allowed, true)) {
+                $response->headers->setCookie(\Symfony\Component\HttpFoundation\Cookie::create($cookie, $value, new \DateTimeImmutable('+1 year'), '/', null, $request->isSecure(), true, false, 'lax'));
+            }
+        }
+
+        return $response;
+    }
 
     #[Sitemap(priority: 0.7, changefreq: 'daily')]
     #[Route('/bbs', name: 'forum_index')]
@@ -79,28 +116,27 @@ class ForumController extends AbstractController
             }
         }
 
-        // The order asked for (?tri=); the feed shows the switch, and the
-        // classic view's own "latest" list follows it when it is asked for.
-        $sort = (string) $request->query->get('tri', '');
+        // The order this browser last chose (Display()); the feed shows the switch, and the classic view's
+        // own "latest" list follows it.
+        $sort = (string) $request->cookies->get(self::SORT_COOKIE, '');
         if (!in_array($sort, self::SORTS, true)) {
             $sort = self::SORTS[0];
         }
 
-        $query = 'populaire' === $sort
+        $query = 'popular' === $sort
             ? $this->topics->createTrendingQuery($readable)
             : $this->topics->createLatestQuery($readable);
         $latest = $this->paginator->paginate($query, $request->query->getInt('page', 1), $this->topicsPerPage);
 
-        // The view asked for (?vue=), or the one this browser last chose.
-        $asked = (string) $request->query->get('vue', '');
-        $view = in_array($asked, self::VIEWS, true) ? $asked : (string) $request->cookies->get(self::VIEW_COOKIE, self::VIEWS[0]);
+        // The view this browser last chose (Display()).
+        $view = (string) $request->cookies->get(self::VIEW_COOKIE, self::VIEWS[0]);
         if (!in_array($view, self::VIEWS, true)) {
             $view = self::VIEWS[0];
         }
 
         // One more page of the feed for its stream (forum-feed.js): the rows
         // alone, and the view it was asked from is not remembered again.
-        if ('fil' === $view && $request->headers->has(TopicController::STREAM_HEADER)) {
+        if ('feed' === $view && $request->headers->has(TopicController::STREAM_HEADER)) {
             $response = $this->render('@Forum/client/_feed_rows.html.twig', ['latest' => $latest]);
             $response->setVary(TopicController::STREAM_HEADER, false);
             $response->setPrivate();
@@ -108,7 +144,7 @@ class ForumController extends AbstractController
             return $response;
         }
 
-        if ('fil' === $view) {
+        if ('feed' === $view) {
             $response = $this->render('@Forum/client/index_fil.html.twig', [
                 'view' => $view,
                 'sort' => $sort,
@@ -133,12 +169,7 @@ class ForumController extends AbstractController
             ]);
         }
 
-        // Remembered per browser, a year: the choice holds for a reader who
-        // is not signed in as much as for a member.
         $response->setVary(TopicController::STREAM_HEADER, false);
-        if ($asked === $view) {
-            $response->headers->setCookie(\Symfony\Component\HttpFoundation\Cookie::create(self::VIEW_COOKIE, $view, new \DateTimeImmutable('+1 year'), '/', null, $request->isSecure(), true, false, 'lax'));
-        }
 
         return $response;
     }
@@ -164,7 +195,8 @@ class ForumController extends AbstractController
             ]);
         }
 
-        $topics = $this->paginator->paginate($this->topics->createCategoryQuery($category), $request->query->getInt('page', 1), $this->topicsPerPage);
+        // Its moderators see what is scheduled on it too, marked as such (_topic_row.html.twig).
+        $topics = $this->paginator->paginate($this->topics->createCategoryQuery($category, $this->isGranted(ForumVoter::SCHEDULE, $category)), $request->query->getInt('page', 1), $this->topicsPerPage);
         if ($rows = $this->streamRows($request, $topics, false)) {
             return $rows;
         }
@@ -205,6 +237,7 @@ class ForumController extends AbstractController
             $category = new Category(trim($model->title), $model->parent);
             $category->setDescription(trim((string) $model->description) ?: null);
             $category->setAnnouncement($model->announcement);
+            $category->setPolls($model->polls);
             $siblings = $category->getParent()?->getChildren()->toArray() ?? $this->categories->findBy(['parent' => null]);
             // Tens, as the order page numbers them (OrderController): room to slot one in between later.
             $category->setPosition(10 + max([0, ...array_map(fn (Category $c) => $c->getPosition(), $siblings)]));

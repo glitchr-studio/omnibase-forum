@@ -23,16 +23,25 @@
  # and belongs with the markup it describes.
  #}
 <style>
-.forum-legend { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem 1.25rem; margin: .75rem 0 0; padding: .55rem .9rem; list-style: none; background: #fff; border: 1px solid var(--forum-line); border-radius: var(--forum-radius); font-size: 12px; color: var(--forum-muted); }
-.forum-legend-item { display: flex; align-items: center; gap: .4rem; }
-.forum-legend .forum-folder { width: auto; height: 22px; }
-.forum-legend-note { margin-left: auto; font-style: italic; }
+/*
+ * A grid, not a wrapping line: every entry the same width, so the words line up down the columns
+ * whatever the badge; each badge in a box of its own fixed size (the "active" ones carry a speech
+ * bubble and are twice as wide, which pushed their words sideways); and the note about "active" on a
+ * line of its own across the whole box, rather than pushed to the right end of whatever line it
+ * happened to fall on.
+ */
+.forum-legend { display: grid; grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr)); align-items: center; gap: .45rem 1rem; margin: .75rem 0 0; padding: .7rem 1rem .6rem; list-style: none; background: #fff; border: 1px solid var(--forum-line); border-radius: var(--forum-radius); font-size: 13px; color: var(--forum-muted); }
+.forum-legend-item { display: flex; align-items: center; gap: .5rem; min-width: 0; }
+.forum-legend-item > span:last-child { overflow-wrap: anywhere; line-height: 1.25; }
+.forum-legend-badge { flex: none; display: inline-flex; align-items: center; justify-content: flex-start; width: 38px; height: 26px; }
+.forum-legend-badge .forum-folder { width: auto; height: 24px; max-width: 38px; object-fit: contain; }
+.forum-legend-note { grid-column: 1 / -1; margin-top: .15rem; padding-top: .45rem; border-top: 1px dashed var(--forum-line); font-size: 12px; font-style: italic; }
 </style>
 
 <ul class="forum-legend" aria-label="{{ '@forum.legend.label'|trans }}">
     {% for state in states %}
         <li class="forum-legend-item forum-legend-{{ state }}">
-            {% include '@Forum/client/_folder.html.twig' with {state: state, size: 22} only %}
+            <span class="forum-legend-badge">{% include '@Forum/client/_folder.html.twig' with {state: state, size: 24} only %}</span>
             <span>{{ ('@forum.legend.' ~ scope ~ '.' ~ state)|trans }}</span>
         </li>
     {% endfor %}

@@ -5,9 +5,12 @@ namespace Base\Forum\Form\Type;
 use Base\Entity\Thread\Tag;
 use Base\Forum\Entity\Category;
 use Base\Forum\Form\Model\TopicModel;
+use Base\Field\Type\SelectType;
 use Base\Forum\Repository\CategoryRepository;
 use Symfony\Bridge\Doctrine\Form\Type\EntityType;
 use Symfony\Component\Form\AbstractType;
+use Symfony\Component\Form\Extension\Core\Type\DateTimeType;
+use Symfony\Component\Form\Extension\Core\Type\IntegerType;
 use Symfony\Component\Form\Extension\Core\Type\TextareaType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormBuilderInterface;
@@ -29,17 +32,28 @@ class TopicType extends AbstractType
             // Only the opening post is edited through this type; on edit
             // the content field is left out (see TopicController::edit).
             'with_content' => true,
+            // When it comes out, for those who may schedule (ForumVoter::SCHEDULE),
+            // and whose name it goes out under, for the forum admin (ForumVoter::ADMIN).
+            'with_schedule' => false,
+            'with_author' => false,
+            // Started from inside a board (/bbs/nouveau/<board>): the board is that one,
+            // and there is nothing to choose - the field is left out.
+            'fixed_category' => false,
+            // The boards the writer may start a topic in (ForumVoter::POST), when the controller has
+            // worked them out: the list then offers those only. Null, every open board.
+            'boards' => null,
         ]);
+        $resolver->setAllowedTypes('fixed_category', 'bool');
+        $resolver->setAllowedTypes('boards', ['null', 'array']);
         $resolver->setAllowedTypes('with_content', 'bool');
+        $resolver->setAllowedTypes('with_schedule', 'bool');
+        $resolver->setAllowedTypes('with_author', 'bool');
     }
 
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
-        $builder
-            ->add('title', TextType::class, [
-                'label' => '@forum.form.title',
-                'attr' => ['maxlength' => 120, 'placeholder' => '@forum.form.title_placeholder', 'autocomplete' => 'off'],
-            ])
+        if (!$options['fixed_category']) {
+            $builder
             ->add('category', EntityType::class, [
                 'label' => '@forum.form.category',
                 'class' => Category::class,
@@ -49,6 +63,16 @@ class TopicType extends AbstractType
                     ->andWhere('c.locked = false')
                     ->orderBy('p.position', \SortDirection::Ascending)->addOrderBy('c.position', \SortDirection::Ascending)->addOrderBy('c.title', \SortDirection::Ascending),
                 'placeholder' => '@forum.form.category_placeholder',
+            ] + (null !== $options['boards'] ? ['choices' => $options['boards']] : []) + [
+                // Which boards take a poll: forum-poll.js shows the poll section for those only.
+                'choice_attr' => fn (Category $c) => ['data-polls' => $c->allowsPolls() ? '1' : '0'],
+            ]);
+        }
+
+        $builder
+            ->add('title', TextType::class, [
+                'label' => '@forum.form.title',
+                'attr' => ['maxlength' => 120, 'placeholder' => '@forum.form.title_placeholder', 'autocomplete' => 'off'],
             ])
             ->add('tags', EntityType::class, [
                 'label' => '@forum.form.tags',
@@ -78,12 +102,57 @@ class TopicType extends AbstractType
                     'attr' => ['maxlength' => 200, 'placeholder' => '@forum.poll.form.question_placeholder', 'autocomplete' => 'off'],
                     'help' => '@forum.poll.form.question_help',
                 ])
+                // One answer per line: what the form sends. On the page, forum-poll-builder.js
+                // draws it as a row per answer, each with the radio (or box) a voter will
+                // see, and writes the lines back here; without the script, the textarea.
                 ->add('pollOptions', TextareaType::class, [
                     'label' => '@forum.poll.form.options',
                     'required' => false,
-                    'attr' => ['rows' => 5, 'placeholder' => '@forum.poll.form.options_placeholder'],
+                    'attr' => ['rows' => 5, 'placeholder' => '@forum.poll.form.options_placeholder', 'data-forum-poll-options' => ''],
                     'help' => '@forum.poll.form.options_help',
+                ])
+                // 1, a single answer; more, "several, up to N" - the script draws the choice.
+                ->add('pollMax', IntegerType::class, [
+                    'label' => '@forum.poll.form.max',
+                    'required' => false,
+                    'empty_data' => '1',
+                    'attr' => ['min' => 1, 'max' => \Base\Forum\Entity\Poll::MAX_OPTIONS, 'data-forum-poll-max' => ''],
+                    'help' => '@forum.poll.form.max_help',
                 ]);
+        }
+
+        if ($options['with_author']) {
+            // Searched, not listed: a select2 that asks base-bundle's autocomplete
+            // for members as their name is typed - a list of every member does
+            // not survive a forum with thousands of them. No faces (`avatar`):
+            // a member without a picture came out as the full-size placeholder
+            // image, which blew the field up to the height of a poster.
+            $builder->add('author', SelectType::class, [
+                'label' => '@forum.form.author',
+                'class' => \App\Entity\User::class,
+                'autocomplete' => true,
+                'multiple' => false,
+                'required' => false,
+                'placeholder' => '@forum.form.author_placeholder',
+                // A site may draw its members its own way (Chapaland: chibi and rank colour).
+                'attr' => ['data-member-picker' => ''],
+                'help' => '@forum.form.author_help',
+            ]);
+        }
+
+        if ($options['with_schedule']) {
+            // The browser's own date and time picker, read in the reader's own
+            // timezone - base-bundle sets PHP's to their timezone cookie on every
+            // request - and stored in UTC like every other date.
+            $builder->add('publishedAt', DateTimeType::class, [
+                'label' => '@forum.form.published_at',
+                'required' => false,
+                'widget' => 'single_text',
+                'html5' => true,
+                'input' => 'datetime',
+                'help' => '@forum.form.published_at_help',
+                'help_translation_parameters' => ['zone' => date_default_timezone_get()],
+            ]);
         }
     }
 }

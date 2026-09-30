@@ -18,6 +18,11 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
  * mentions, publish state and soft delete come from base-bundle. The
  * body of the topic is its first Post, so a topic and its replies are read,
  * quoted, edited and moderated the same way.
+ *
+ * A topic may be written ahead of its hour (schedule()): until publishedAt it
+ * is out of every list and closed to replies, and only its authors and the
+ * moderators of its board can open it (ForumVoter). The date alone decides -
+ * nothing has to run at that hour for it to appear.
  */
 #[ORM\Entity(repositoryClass: TopicRepository::class)]
 #[ORM\Table(name: 'forum_topic')]
@@ -64,10 +69,60 @@ class Topic extends Thread implements LinkableInterface
         $this->posts = new ArrayCollection();
         $this->category = $category;
 
-        // A forum topic is public the moment it is written; drafts and
-        // scheduling belong to blogs.
+        // Public the moment it is written, unless it is given an hour to come
+        // out at (schedule()).
         $this->setState(ThreadState::PUBLISH);
         $this->setPublishedAt(new \DateTime());
+    }
+
+    /**
+     * Out at $at when that is still to come; otherwise now.
+     *
+     * The state stays PUBLISH either way. Base-bundle's FUTURE waits for its
+     * thread:publishable command to be run to become PUBLISH, and nothing runs
+     * it here: the lists go by the date (TopicRepository::whereOut()), so a
+     * scheduled topic comes out at its hour on its own.
+     *
+     * A topic nobody has answered yet moves its last activity to that hour
+     * too: the lists sort by it, and a topic out at 18:00 must come in at
+     * 18:00, not at the hour it was written.
+     */
+    public function schedule(?\DateTimeInterface $at): self
+    {
+        $now = new \DateTime();
+        $this->setPublishedAt($at && $at > $now ? \DateTime::createFromInterface($at) : $now);
+        $this->setState(ThreadState::PUBLISH);
+        if (0 === $this->replies) {
+            $this->lastPostAt = $this->getPublishedAt();
+        }
+
+        return $this;
+    }
+
+    /** Written, but not out yet (schedule()). */
+    public function isUpcoming(): bool
+    {
+        $at = $this->getPublishedAt();
+
+        return null !== $at && $at > new \DateTime();
+    }
+
+    /**
+     * Who the topic is signed by: its opening post and its owner, together.
+     * An admin may publish in someone else's name (TopicController).
+     */
+    public function setAuthor(User $author): self
+    {
+        foreach ($this->getOwners()->toArray() as $owner) {
+            $this->removeOwner($owner);
+        }
+        $this->addOwner($author);
+        $this->getFirstPost()?->setAuthor($author);
+        if (0 === $this->replies) {
+            $this->lastPoster = $author;
+        }
+
+        return $this;
     }
 
     public function __toString(): string

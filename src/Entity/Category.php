@@ -69,6 +69,10 @@ class Category implements LinkableInterface, IconizeInterface
     #[ORM\Column(type: 'boolean', options: ['default' => false])]
     protected bool $announcement = false;
 
+    /** Whether a topic opened here may carry a poll (Poll): an admin's to say, board by board. */
+    #[ORM\Column(type: 'boolean', options: ['default' => true])]
+    protected bool $polls = true;
+
     /** Role required to READ the board; null means everyone. The old "BBS Modos"/"BBS Créateurs". */
     #[ORM\Column(type: 'string', length: 64, nullable: true)]
     protected ?string $requiredRole = null;
@@ -145,6 +149,10 @@ class Category implements LinkableInterface, IconizeInterface
 
     public function isAnnouncement(): bool { return $this->announcement; }
     public function setAnnouncement(bool $announcement): self { $this->announcement = $announcement; return $this; }
+
+    public function allowsPolls(): bool { return $this->polls; }
+    public function isPolls(): bool { return $this->polls; }
+    public function setPolls(bool $polls): self { $this->polls = $polls; return $this; }
 
     public function getRequiredRole(): ?string { return $this->requiredRole; }
     public function setRequiredRole(?string $requiredRole): self { $this->requiredRole = $requiredRole ?: null; return $this; }

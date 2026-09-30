@@ -93,6 +93,19 @@ class Post
     public function getCreatedAt(): ?\DateTimeInterface { return $this->createdAt; }
     public function getUpdatedAt(): ?\DateTimeInterface { return $this->updatedAt; }
 
+    /**
+     * The date the post is shown with: when it was written - except a
+     * scheduled topic's opening post, which is dated the hour its topic came
+     * out (Topic::schedule()). createdAt itself cannot carry that hour: it is
+     * a #[Timestamp] and gets overwritten on persist.
+     */
+    public function getShownAt(): ?\DateTimeInterface
+    {
+        $out = $this->isFirst() ? $this->topic?->getPublishedAt() : null;
+
+        return $out && $this->createdAt && $out > $this->createdAt ? $out : $this->createdAt;
+    }
+
     public function getEditedAt(): ?\DateTimeInterface { return $this->editedAt; }
     public function markEdited(): self
     {

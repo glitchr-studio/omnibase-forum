@@ -20,17 +20,36 @@
     </section>
 
     {{ form_start(form, {attr: {class: 'forum-form forum-form-topic'}}) }}
+        {# What belongs to no field on the page (an expired token, a field the form leaves out): said, not swallowed. #}
+        {{ form_errors(form) }}
         {{ form_row(form.title) }}
-        {{ form_row(form.category) }}
+        {# Started from a board: that one, and nothing to choose (TopicController::Create, fixed_category). #}
+        {% if form.category is defined %}{{ form_row(form.category) }}{% endif %}
         {{ form_row(form.tags) }}
-        {{ form_row(form.content) }}
         {# The poll: folded away unless it has something in it (a form sent back with errors). #}
-        {% set poll_open = form.pollQuestion.vars.value or form.pollOptions.vars.value or not form.pollQuestion.vars.valid or not form.pollOptions.vars.valid %}
-        <details class="forum-form-poll"{{ poll_open ? ' open' }}>
+        {% set poll_open = form.pollQuestion.vars.value or form.pollOptions.vars.value or not form.pollQuestion.vars.valid or not form.pollOptions.vars.valid or not form.pollMax.vars.valid %}
+        {# A board that takes no poll (Category::$polls): the section is not offered - forum-poll.js hides it when the board is chosen in the form. #}
+        <details class="forum-form-poll"{{ poll_open ? ' open' }}{{ form.category is not defined and category and not category.allowsPolls ? ' hidden' }}>
             <summary><i class="fa-solid fa-square-poll-horizontal" aria-hidden="true"></i> {{ '@forum.poll.form.legend'|trans }}</summary>
             {{ form_row(form.pollQuestion) }}
             {{ form_row(form.pollOptions) }}
+            {{ form_row(form.pollMax) }}
+            {# forum-poll.js draws the answers here - a row each, with the radio or box a voter will see - and writes them back into the two fields above. #}
+            <div class="forum-poll-builder" data-forum-poll-builder data-max="{{ constant('Base\\Forum\\Entity\\Poll::MAX_OPTIONS') }}" data-labels="{{ {
+                one: '@forum.poll.form.one'|trans, many: '@forum.poll.form.many'|trans, upTo: '@forum.poll.form.up_to'|trans,
+                max: '@forum.poll.form.max'|trans, answer: '@forum.poll.form.answer'|trans({n: '{n}'}),
+                add: '@forum.poll.form.add'|trans, remove: '@forum.poll.form.remove'|trans,
+            }|json_encode|e('html_attr') }}"></div>
         </details>
+        <script src="{{ asset('bundles/forum/js/forum-poll.js') }}" defer></script>
+        {{ form_row(form.content) }}
+        {# When it comes out, and in whose name: only for those who may (TopicController). #}
+        {% if form.author is defined or form.publishedAt is defined %}
+            <fieldset class="forum-form-publish">
+                {% if form.author is defined %}{{ form_row(form.author) }}{% endif %}
+                {% if form.publishedAt is defined %}{{ form_row(form.publishedAt) }}{% endif %}
+            </fieldset>
+        {% endif %}
         <div class="forum-form-actions">
             <button type="submit" class="forum-btn forum-btn-primary"><i class="fa-solid fa-paper-plane"></i> {{ '@forum.topic.publish'|trans }}</button>
             <a class="forum-btn forum-btn-ghost" href="{{ category ? path('forum_category', {slug: category.slug}) : path('forum_index') }}">{{ '@forum.form.cancel'|trans }}</a>

@@ -18,7 +18,7 @@
 {% endmacro %}
 
 {% set can_edit = is_granted('FORUM_EDIT', post) %}
-{% set can_moderate = is_granted('FORUM_MODERATE') %}
+{% set can_moderate = is_granted('FORUM_MODERATE', post) %}
 {% set can_reply = is_granted('FORUM_REPLY', topic) and not post.deleted %}
 {% set has_icons = has_icons ?? (source('@Forum/client/_icon.html.twig', true) is not empty) %}
 {% set node = node ?? null %}
@@ -44,7 +44,7 @@
         {% include '@Forum/client/_avatar.html.twig' with {user: post.author, size: 'lg'} %}
         <div class="forum-post-author-name">{% include '@Forum/client/_member.html.twig' with {user: post.author} %}</div>
         {% if retro %}
-            <time class="forum-post-when" datetime="{{ post.createdAt|date('c') }}">{{ post.createdAt|datetime('d MMMM yyyy') }}<br>{{ post.createdAt|datetime('HH:mm') }}</time>
+            <time class="forum-post-when" datetime="{{ post.shownAt|date('c') }}">{{ post.shownAt|datetime('d MMMM yyyy') }}<br>{{ post.shownAt|datetime('HH:mm') }}</time>
         {% elseif post.author and post.author.level is defined %}
             <div class="forum-post-author-level">{{ '@forum.member.level'|trans({'%level%': post.author.level}) }}</div>
         {% endif %}
@@ -60,7 +60,7 @@
              # the topic's name written out more often than anything said in it.
              #}
             <a class="forum-post-number" href="#post-{{ post.id }}">#{{ node ? node.number : post.number }}</a>
-            {% if not retro %}<time datetime="{{ post.createdAt|date('c') }}">{{ post.createdAt|datetime('d MMMM yyyy, HH:mm') }}</time>{% endif %}
+            {% if not retro %}<time datetime="{{ post.shownAt|date('c') }}">{{ post.shownAt|datetime('d MMMM yyyy, HH:mm') }}</time>{% endif %}
 
             {# "en réponse à": only where the post leaves the trunk - the trunk simply follows on. #}
             {% if node %}

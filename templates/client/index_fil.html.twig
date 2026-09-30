@@ -46,13 +46,14 @@
            them. #}
         <div class="forum-feed-head">
             <div class="forum-feed-headline">
-                <h2 class="forum-section-title"><i class="fa-solid fa-bolt"></i> {{ (sort|default('recent') == 'populaire' ? '@forum.fil.trending' : '@forum.fil.latest')|trans }}</h2>
+                <h2 class="forum-section-title"><i class="fa-solid fa-bolt"></i> {{ (sort|default('recent') == 'popular' ? '@forum.fil.trending' : '@forum.fil.latest')|trans }}</h2>
 
                 {# The order the feed is in - see ForumController::SORTS. #}
-                <nav class="forum-sorts" role="group" aria-label="{{ '@forum.fil.sort'|trans }}">
-                    <a class="forum-sort{{ sort|default('recent') != 'populaire' ? ' is-active' }}" href="{{ path('forum_index', {vue: 'fil'}) }}"{{ sort|default('recent') != 'populaire' ? ' aria-current="page"' }}><i class="fa-solid fa-bolt"></i> {{ '@forum.fil.sort_recent'|trans }}</a>
-                    <a class="forum-sort{{ sort|default('recent') == 'populaire' ? ' is-active' }}" href="{{ path('forum_index', {vue: 'fil', tri: 'populaire'}) }}"{{ sort|default('recent') == 'populaire' ? ' aria-current="page"' }}><i class="fa-solid fa-fire"></i> {{ '@forum.fil.sort_trending'|trans }}</a>
-                </nav>
+                <form class="forum-sorts" role="group" aria-label="{{ '@forum.fil.sort'|trans }}" method="post" action="{{ path('forum_display') }}">
+                    <input type="hidden" name="back" value="{{ path('forum_index') }}">
+                    <button type="submit" name="sort" value="recent" class="forum-sort{{ sort|default('recent') != 'popular' ? ' is-active' }}"{{ sort|default('recent') != 'popular' ? ' aria-current="page"' }}><i class="fa-solid fa-bolt"></i> {{ '@forum.fil.sort_recent'|trans }}</button>
+                    <button type="submit" name="sort" value="popular" class="forum-sort{{ sort|default('recent') == 'popular' ? ' is-active' }}"{{ sort|default('recent') == 'popular' ? ' aria-current="page"' }}><i class="fa-solid fa-fire"></i> {{ '@forum.fil.sort_trending'|trans }}</button>
+                </form>
             </div>
 
             {# The boards as filter chips, each leading to its own list. #}
@@ -75,13 +76,13 @@
          # It stays for a reader without the script, and for the search engines.
          #}
         <ol class="forum-feed-list" data-forum-feed data-page="{{ latest.page }}" data-pages="{{ max(latest.totalPages, 1) }}"
-            data-url="{{ path('forum_index', {vue: 'fil', tri: sort|default('recent') == 'populaire' ? 'populaire' : null}) }}"
+            data-url="{{ path('forum_index') }}"
             data-loading="{{ '@forum.stream.loading'|trans }}" data-failed="{{ '@forum.stream.failed'|trans }}">
             {% for topic in latest %}
                 {% include '@Forum/client/_feed_row.html.twig' with {topic: topic, page: latest.page} %}
             {% endfor %}
         </ol>
-        {% include '@Forum/client/_pager.html.twig' with {pagination: latest, route: 'forum_index', params: {vue: 'fil', tri: sort|default('recent') == 'populaire' ? 'populaire' : null}} %}
+        {% include '@Forum/client/_pager.html.twig' with {pagination: latest, route: 'forum_index', params: {}} %}
         {% endif %}
     </section>
 {% endblock %}

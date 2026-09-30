@@ -9,7 +9,8 @@ use Doctrine\ORM\Mapping as ORM;
 
 /**
  * A topic's poll - phpBB's "sondage", which the 2004 BBS had above a topic's
- * messages: one question, a few answers, one vote per member.
+ * messages: one question, a few answers, and each member picks one of them -
+ * or, when the poll allows it (maxChoices), up to that many.
  *
  * The answers are a plain list kept on the poll (their order is their
  * identity: a vote records the index it chose), because a poll's answers are
@@ -39,6 +40,10 @@ class Poll
     #[ORM\Column(type: 'json')]
     protected array $options = [];
 
+    /** How many answers a member may pick: 1, a single one (the 2004 BBS's only kind); more, up to that many. */
+    #[ORM\Column(type: 'smallint', options: ['default' => 1])]
+    protected int $maxChoices = 1;
+
     #[ORM\Column(type: 'datetime')]
     protected \DateTimeInterface $createdAt;
 
@@ -47,11 +52,12 @@ class Poll
     protected Collection $votes;
 
     /** @param list<string> $options */
-    public function __construct(Topic $topic, string $question, array $options)
+    public function __construct(Topic $topic, string $question, array $options, int $maxChoices = 1)
     {
         $this->topic = $topic;
         $this->question = $question;
         $this->options = array_values($options);
+        $this->maxChoices = max(1, min($maxChoices, count($this->options)));
         $this->createdAt = new \DateTime();
         $this->votes = new ArrayCollection();
         $topic->setPoll($this);
@@ -62,6 +68,8 @@ class Poll
     public function getQuestion(): string { return $this->question; }
     /** @return list<string> */
     public function getOptions(): array { return $this->options; }
+    public function getMaxChoices(): int { return max(1, $this->maxChoices); }
+    public function isMultiple(): bool { return $this->getMaxChoices() > 1; }
     public function getCreatedAt(): \DateTimeInterface { return $this->createdAt; }
     /** @return Collection<int, PollVote> */
     public function getVotes(): Collection { return $this->votes; }
@@ -94,24 +102,37 @@ class Poll
         return $counts;
     }
 
+    /**
+     * How many members voted - not how many answers were picked: on a poll that
+     * allows several, one member's three answers are one voter, and an answer's
+     * share is the share of VOTERS who picked it (so the shares may add up past
+     * 100%, as they do on any "pick several" poll).
+     */
     public function getTotal(): int
     {
-        return array_sum($this->getCounts());
+        $voters = [];
+        foreach ($this->votes as $vote) {
+            $voters[spl_object_id($vote->getUser())] = true;
+        }
+
+        return count($voters);
     }
 
-    /** The answer a member chose, or null when they have not voted. */
-    public function getChoiceOf(?User $user): ?int
+    /** @return list<int> the answers a member picked, by index; empty when they have not voted */
+    public function getChoicesOf(?User $user): array
     {
         if (!$user) {
-            return null;
+            return [];
         }
+        $choices = [];
         foreach ($this->votes as $vote) {
             if ($vote->getUser() === $user) {
-                return $vote->getChoice();
+                $choices[] = $vote->getChoice();
             }
         }
+        sort($choices);
 
-        return null;
+        return $choices;
     }
 
     public function hasOption(int $choice): bool

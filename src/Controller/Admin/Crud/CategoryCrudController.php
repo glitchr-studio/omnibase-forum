@@ -45,6 +45,8 @@ class CategoryCrudController extends AbstractCrudController
         yield BooleanField::new('locked')->setColumns(3);
         // An announcement board: it and its topics wear the megaphone badge, and the feed heads with them.
         yield BooleanField::new('announcement')->setColumns(3);
+        // Whether a topic opened in the board may carry a poll.
+        yield BooleanField::new('polls', 'Sondages')->setColumns(3);
         yield IconField::new('icon')->setColumns(6)->hideOnIndex();
         yield ColorPickerField::new('color')->setColumns(3)->hideOnIndex();
         /*

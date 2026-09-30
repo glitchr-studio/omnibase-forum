@@ -46,8 +46,13 @@
 {% block forum_lead %}{% if head_leads %}{{ block('forum_topic_head') }}{% endif %}{% endblock %}
 
 {% block forum_topic %}
-    <article class="forum-topic is-style-{{ retro ? 'retro' : 'cartes' }}" id="topic-{{ topic.id }}">
+    <article class="forum-topic is-style-{{ retro ? 'retro' : 'cards' }}" id="topic-{{ topic.id }}">
         {% if not head_leads %}{{ block('forum_topic_head') }}{% endif %}
+
+        {# Scheduled and not out yet: only its authors and its board's moderators get this far (ForumVoter). #}
+        {% if topic.upcoming %}
+            <p class="forum-upcoming-note" role="status"><i class="fa-solid fa-hourglass-half" aria-hidden="true"></i> {{ '@forum.topic.upcoming'|trans({date: topic.publishedAt|datetime('d MMMM yyyy, HH:mm')}) }}</p>
+        {% endif %}
 
         {{ block('forum_pager') }}
 
@@ -176,9 +181,9 @@
  # count on the <article> being its parent.
  #}
 {% block forum_topic_head %}
-{% set can_moderate = is_granted('FORUM_MODERATE') %}
+{% set can_moderate = is_granted('FORUM_MODERATE', topic) %}
 {% set can_edit_topic = is_granted('FORUM_EDIT', topic) %}
-<header class="forum-topic-head is-style-{{ retro ? 'retro' : 'cartes' }}">
+<header class="forum-topic-head is-style-{{ retro ? 'retro' : 'cards' }}">
     {# In 2005 the title is in the head of the box instead (forum_topic above). #}
     {% if not retro %}{{ block('forum_topic_title') }}{% endif %}
 
