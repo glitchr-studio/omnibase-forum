@@ -8,42 +8,12 @@
         "bbs",
         "discussion"
     ],
-    "homepage": "https://gitlab.glitchr.dev/public-repository/symfony/bundle/base/extension/forum",
+    "homepage": "https://github.com/glitchr-studio/omnibase-forum",
     "license": "LGPL-3.0-or-later",
     "authors": [
         {
             "name": "Marco Meyer",
             "email": "marco.meyer@glitchr.io"
-        }
-    ],
-    "repositories": [
-        {
-            "type": "vcs",
-            "url": "https://gitlab.glitchr.dev/public-repository/agnostic/backup-manager"
-        },
-        {
-            "type": "vcs",
-            "url": "https://gitlab.glitchr.dev/public-repository/symfony/bundle/base/component"
-        },
-        {
-            "type": "vcs",
-            "url": "https://gitlab.glitchr.dev/public-repository/symfony/bundle/base/extension/admin"
-        },
-        {
-            "type": "vcs",
-            "url": "https://gitlab.glitchr.dev/public-repository/symfony/bundle/base/plugin"
-        },
-        {
-            "type": "vcs",
-            "url": "https://gitlab.glitchr.dev/public-repository/symfony/bundle/doctrine-dc2type"
-        },
-        {
-            "type": "vcs",
-            "url": "https://gitlab.glitchr.dev/public-repository/symfony/bundle/well-known"
-        },
-        {
-            "type": "vcs",
-            "url": "https://gitlab.glitchr.dev/public-repository/symfony/bundle/ux/google-api"
         }
     ],
     "autoload": {
