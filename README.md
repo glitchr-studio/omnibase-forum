@@ -13,7 +13,7 @@ on top: `Category` (a two-level tree: groups holding boards) and `Post`
 ## Install
 
 ```bash
-composer require glitchr/base-bundle-forum:dev-main
+composer require omnibase/forum:dev-main
 ```
 
 ```php

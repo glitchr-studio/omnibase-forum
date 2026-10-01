@@ -1,5 +1,5 @@
 {
-    "name": "glitchr/base-bundle-forum",
+    "name": "omnibase/forum",
     "type": "symfony-bundle",
     "description": "Discussion forum for base-bundle: categories, topics built on Thread (tags, followers, likes), markdown posts, moderation and admin CRUD",
     "keywords": [
@@ -59,8 +59,8 @@
     "require": {
         "php": "^8.2",
         "doctrine/orm": "^2.15|^3.0",
-        "glitchr/base-bundle": "3.0.*-dev",
-        "glitchr/base-bundle-admin": "dev-main",
+        "glitchr/omnibase": "3.0.*-dev",
+        "omnibase/admin": "dev-main",
         "league/commonmark": "^2.4",
         "symfony/config": "^6.0|^7.0|^8.0",
         "symfony/dependency-injection": "^6.0|^7.0|^8.0",

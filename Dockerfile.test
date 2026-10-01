@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 #
-# Standalone test runner for glitchr/base-bundle-forum — installs the bundle
+# Standalone test runner for omnibase/forum — installs the bundle
 # as its own root package (composer.json declares the VCS repositories for
 # its glitchr/* dependencies), pulling in require-dev (phpunit) with it. No
 # demo app scaffolding, unlike the root Dockerfile which tours the bundle
